@@ -835,16 +835,16 @@
         // --- TELEGRAM BOT INTEGRATION ---
         function saveTelegramSettings(e) {
             e.preventDefault();
-            telegramConfig.token = document.getElementById('8735773734:AAHRixPREQqkROnTra7XLiokNdZzul-1xJ8').value.trim();
-            telegramConfig.chatId = document.getElementById('8008704752').value.trim();
+            telegramConfig.token = document.getElementById('tg-token').value.trim();
+            telegramConfig.chatId = document.getElementById('tg-chatid').value.trim();
             saveData();
             alert("Credenziali Telegram Salvate con successo!");
             closeModal('modal-telegram');
         }
 
         async function testTelegramBot() {
-            const token = document.getElementById('8735773734:AAHRixPREQqkROnTra7XLiokNdZzul-1xJ8').value.trim();
-            const chatId = document.getElementById('8008704752').value.trim();
+            const token = document.getElementById('tg-token').value.trim();
+            const chatId = document.getElementById('tg-chatid').value.trim();
 
             if (!token || !chatId) {
                 alert("Inserisci sia il Token che il Chat ID per fare il test!");
@@ -1141,4 +1141,176 @@
             openModal('modal-presenze');
         }
 
-        function setPresenza
+        function setPresenza(atletaId, status) {
+            const all = allenamenti.find(a => a.id === currentSelectedAllenamentoId);
+            if (!all) return;
+            if (!all.presenze) all.presenze = {};
+            all.presenze[atletaId] = status;
+            saveData();
+            openPresenzeModal(currentSelectedAllenamentoId);
+            updateUI();
+        }
+
+        function markAllPresenze(isPresent) {
+            const all = allenamenti.find(a => a.id === currentSelectedAllenamentoId);
+            if (!all) return;
+            const atletiCat = atleti.filter(a => a.categoria === all.categoria);
+            if (!all.presenze) all.presenze = {};
+            atletiCat.forEach(a => {
+                all.presenze[a.id] = isPresent ? 'presente' : 'assente';
+            });
+            saveData();
+            openPresenzeModal(currentSelectedAllenamentoId);
+            updateUI();
+        }
+
+        // --- PAGAMENTI & CASSA ---
+        function renderPagamentiTable() {
+            const tbody = document.getElementById('table-pagamenti');
+            tbody.innerHTML = '';
+
+            let totalIncassato = 0;
+            let totalSospeso = 0;
+
+            pagamenti.forEach(p => {
+                const atl = atleti.find(a => a.id === p.atletaId) || { nome: 'Atleta', cognome: 'Eliminato' };
+                if (p.stato === 'Pagato') totalIncassato += Number(p.importo);
+                else totalSospeso += Number(p.importo);
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                        <td class="px-5 py-3 font-mono text-xs text-slate-500">${p.data}</td>
+                        <td class="px-5 py-3 font-medium text-slate-800 dark:text-white">${atl.nome} ${atl.cognome}</td>
+                        <td class="px-5 py-3 text-slate-500">${p.causale}</td>
+                        <td class="px-5 py-3 font-bold text-slate-800 dark:text-white">€ ${Number(p.importo).toFixed(2)}</td>
+                        <td class="px-5 py-3">
+                            <span class="px-2 py-1 rounded-md text-[10px] font-bold ${p.stato === 'Pagato' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}">
+                                ${p.stato}
+                            </span>
+                        </td>
+                        <td class="px-5 py-3 text-right space-x-2">
+                            <button onclick="stampaRicevuta('${p.id}')" class="text-xs text-brand-600 hover:underline font-semibold"><i class="fa-solid fa-receipt"></i> PDF</button>
+                            <button onclick="deletePagamento('${p.id}')" class="text-xs text-red-500 hover:underline"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            document.getElementById('stat-incassato').textContent = `€ ${totalIncassato.toFixed(2)}`;
+            document.getElementById('stat-sospeso').textContent = `€ ${totalSospeso.toFixed(2)}`;
+            document.getElementById('stat-transazioni').textContent = pagamenti.length;
+
+            // Aggiorna tendina pagamenti
+            const select = document.getElementById('pagamento-atleta');
+            select.innerHTML = '';
+            atleti.forEach(a => {
+                select.innerHTML += `<option value="${a.id}">${a.nome} ${a.cognome} (${a.categoria})</option>`;
+            });
+        }
+
+        function savePagamento(e) {
+            e.preventDefault();
+            const obj = {
+                id: 'p_' + Date.now(),
+                atletaId: document.getElementById('pagamento-atleta').value,
+                importo: parseFloat(document.getElementById('pagamento-importo').value),
+                data: document.getElementById('pagamento-data').value,
+                causale: document.getElementById('pagamento-causale').value.trim(),
+                stato: document.getElementById('pagamento-stato').value
+            };
+
+            pagamenti.unshift(obj);
+            saveData();
+            updateUI();
+            closeModal('modal-pagamento');
+        }
+
+        function deletePagamento(id) {
+            if (confirm("Eliminare questo pagamento?")) {
+                pagamenti = pagamenti.filter(p => p.id !== id);
+                saveData();
+                updateUI();
+            }
+        }
+
+        function stampaRicevuta(id) {
+            const p = pagamenti.find(x => x.id === id);
+            if (!p) return;
+            const atl = atleti.find(a => a.id === p.atletaId) || { nome: 'Atleta', cognome: 'N/D' };
+
+            currentReceiptData = { p, atl };
+
+            document.getElementById('rcp-num').textContent = `RICEVUTA #${p.id.slice(-6)}`;
+            document.getElementById('rcp-data').textContent = `Data: ${p.data}`;
+            document.getElementById('rcp-atleta').textContent = `${atl.nome} ${atl.cognome}`;
+            document.getElementById('rcp-causale').textContent = p.causale;
+            document.getElementById('rcp-stato').textContent = p.stato;
+            document.getElementById('rcp-importo').textContent = `€ ${Number(p.importo).toFixed(2)}`;
+
+            openModal('modal-ricevuta');
+        }
+
+        function downloadRicevutaPDF() {
+            const { window } = globalThis;
+            const element = document.getElementById('receipt-pdf-content');
+            
+            html2canvas(element).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a5');
+                const imgWidth = 148;
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                
+                pdf.addImage(imgData, 'PNG', 0, 10, imgWidth, imgHeight);
+                pdf.save(`Ricevuta_${currentReceiptData.atl.cognome}_${currentReceiptData.p.data}.pdf`);
+            });
+        }
+
+        function esportaReportPagamentiPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            doc.setFontSize(16);
+            doc.text("Report Finanziario Pagamenti", 14, 20);
+            doc.setFontSize(10);
+            doc.text(`Data Generazione: ${new Date().toLocaleDateString()}`, 14, 28);
+
+            let y = 40;
+            doc.setFontSize(11);
+            doc.text("Dettaglio Transazioni:", 14, y);
+            y += 8;
+
+            pagamenti.forEach((p, idx) => {
+                const atl = atleti.find(a => a.id === p.atletaId) || { nome: 'Atleta', cognome: 'N/D' };
+                doc.setFontSize(9);
+                doc.text(`${p.data} - ${atl.nome} ${atl.cognome} | ${p.causale} | €${Number(p.importo).toFixed(2)} [${p.stato}]`, 14, y);
+                y += 6;
+                if (y > 270) { doc.addPage(); y = 20; }
+            });
+
+            doc.save("Report_Pagamenti.pdf");
+        }
+
+        // --- UTILS & MODALS ---
+        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+        function toggleDarkMode() {
+            document.documentElement.classList.toggle('dark');
+            const icon = document.getElementById('theme-icon');
+            if (document.documentElement.classList.contains('dark')) {
+                icon.className = 'fa-solid fa-sun';
+            } else {
+                icon.className = 'fa-solid fa-moon';
+            }
+        }
+
+        function resetDataModal() {
+            if (confirm("Ripristinare i dati di esempio iniziali? Tutti i dati correnti verranno sovrascritti.")) {
+                localStorage.clear();
+                location.reload();
+            }
+        }
+    </script>
+</body>
+</html>
