@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="it" class="h-full font-sans antialiased">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AthletaHub Pro - Atleti, Presenze, Pagamenti & Telegram</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            500: '#0284c7',
+                            600: '#0369a1',
+                            700: '#075985',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- jsPDF & html2canvas per esportazione PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; }
+    </style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 h-full flex flex-col selection:bg-brand-500 selection:text-white">
+
+    <!-- HEADER NAVIGATION -->
+    <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-brand-600 text-white flex items-center justify-center font-bold text-xl shadow-md">
+                    <i class="fa-solid fa-running"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight text-slate-900 dark:text-white">AthletaHub Pro</h1>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Atleti, Presenze, Pagamenti & Telegram</p>
+                </div>
+            </div>
+
+            <!-- Header Actions -->
+            <div class="flex items-center space-x-3">
+                <!-- Telegram Quick Alert Button -->
+                <button onclick="openTelegramModal()" title="Configura e Invia Notifiche Telegram" class="bg-sky-50 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400 hover:bg-sky-100 dark:hover:bg-sky-900/50 px-3 py-2 rounded-lg text-sm font-medium flex items-center space-x-2 transition border border-sky-200 dark:border-sky-800">
+                    <i class="fa-brands fa-telegram text-base"></i>
+                    <span class="hidden sm:inline">Bot Telegram</span>
+                </button>
+
+                <!-- Data Reset -->
+                <button onclick="openConfirmModal('resetData')" title="Opzioni Reset Dati" class="p-2 rounded-lg text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                    <i class="fa-solid fa-rotate text-lg"></i>
+                </button>
+                
+                <!-- Dark Mode Toggle -->
+                <button id="themeToggle" class="p-2 rounded-lg text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                    <i class="fa-solid fa-moon dark:hidden text-lg"></i>
+                    <i class="fa-solid fa-sun hidden dark:block text-lg"></i>
+                </button>
+
+                <!-- New Athlete CTA -->
+                <button onclick="openAthleteModal()" class="bg-brand-600 hover:bg-brand-700 text-white px-3.5 py-2 rounded-lg font-medium text-sm flex items-center space-x-2 shadow-sm transition">
+                    <i class="fa-solid fa-user-plus"></i>
+                    <span class="hidden sm:inline">Nuovo Atleta</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- NAVIGATION TABS -->
+    <div class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <nav class="flex space-x-8 overflow-x-auto custom-scrollbar" aria-label="Tabs">
+                <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-btn py-4 px-1 border-b-2 border-brand-600 font-medium text-sm text-brand-600 dark:text-brand-500 whitespace-nowrap flex items-center space-x-2">
+                    <i class="fa-solid fa-chart-pie"></i>
+                    <span>Dashboard</span>
+                </button>
+                <button onclick="switchTab('athletes')" id="tab-athletes" class="tab-btn py-4 px-1 border-b-2 border-transparent font-medium text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 whitespace-nowrap flex items-center space-x-2">
+                    <i class="fa-solid fa-users"></i>
+                    <span>Atleti</span>
+                </button>
+                <button onclick="switchTab('attendance')" id="tab-attendance" class="tab-btn py-4 px-1 border-b-2 border-transparent font-medium text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 whitespace-nowrap flex items-center space-x-2">
+                    <i class="fa-solid fa-clipboard-user"></i>
+                    <span>Presenze & Lezioni</span>
+                </button>
+                <button onclick="switchTab('payments')" id="tab-payments" class="tab-btn py-4 px-1 border-b-2 border-transparent font-medium text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 whitespace-nowrap flex items-center space-x-2">
+                    <i class="fa-solid fa-wallet"></i>
+                    <span>Pagamenti & Cassa</span>
+                </button>
+            </nav>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT CONTAINER -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- DASHBOARD VIEW -->
+        <section id="view-dashboard" class="space-y-6">
+            <!-- Stats Overview Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Atleti Totali</p>
+                            <h3 id="stat-total-athletes" class="text-2xl font-bold mt-1">0</h3>
+                        </div>
+                        <div class="p-3 bg-brand-50 dark:bg-slate-700 text-brand-600 dark:text-brand-500 rounded-xl">
+                            <i class="fa-solid fa-users text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Incasso Totale</p>
+                            <h3 id="stat-total-revenue" class="text-2xl font-bold mt-1 text-emerald-600 dark:text-emerald-400">€ 0.00</h3>
+                        </div>
+                        <div class="p-3 bg-emerald-50 dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 rounded-xl">
+                            <i class="fa-solid fa-euro-sign text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">In Sospeso</p>
+                            <h3 id="stat-pending-revenue" class="text-2xl font-bold mt-1 text-red-500">€ 0.00</h3>
+                        </div>
+                        <div class="p-3 bg-red-50 dark:bg-slate-700 text-red-600 dark:text-red-400 rounded-xl">
+                            <i class="fa-solid fa-hand-holding-dollar text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Certificati In Scadenza (15gg)</p>
+                            <h3 id="stat-expiring-cert" class="text-2xl font-bold mt-1 text-amber-500">0</h3>
+                        </div>
+                        <div class="p-3 bg-amber-50 dark:bg-slate-700 text-amber-600 dark:text-amber-400 rounded-xl">
+                            <i class="fa-solid fa-file-medical text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <h3 class="font-bold text-slate-800 dark:text-slate-100 mb-4 flex items-center space-x-2">
+                        <i class="fa-solid fa-chart-column text-brand-600"></i>
+                        <span>Trend Presenze Ultime Sessioni</span>
+                    </h3>
+                    <div class="h-64 relative">
+                        <canvas id="attendanceChart"></canvas>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <h3 class="font-bold text-slate-800 dark:text-slate-100 mb-4 flex items-center space-x-2">
+                        <i class="fa-solid fa-pie-chart text-brand-600"></i>
+                        <span>Stato Certificati Medici</span>
+                    </h3>
+                    <div class="h-64 relative flex justify-center">
+                        <canvas id="certChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ATHLETES VIEW -->
+        <section id="view-athletes" class="space-y-6 hidden">
+            <!-- Search & Filter Controls -->
+            <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
+                <div class="relative w-full md:w-80">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input type="text" id="athleteSearch" oninput="renderAthletes()" placeholder="Cerca atleta..." class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                </div>
+                <div class="flex items-center space-x-3 w-full md:w-auto justify-end">
+                    <select id="categoryFilter" onchange="renderAthletes()" class="bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                        <option value="ALL">Tutte le Categorie</option>
+                        <option value="Under 14">Under 14</option>
+                        <option value="Under 18">Under 18</option>
+                        <option value="Seniores">Seniores</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Athletes Grid -->
+            <div id="athletesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Dynamically Rendered Cards -->
+            </div>
+        </section>
+
+        <!-- ATTENDANCE VIEW -->
+        <section id="view-attendance" class="space-y-6 hidden">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                <div>
+                    <h2 class="font-bold text-lg">Registro Presenze & Lezioni</h2>
+                    <p class="text-xs text-slate-500">Registra la presenza e riscuoti la quota della singola ora di lezione</p>
+                </div>
+                <button onclick="openSessionModal()" class="bg-brand-600 hover:bg-brand-700 text-white px-3.5 py-2 rounded-lg font-medium text-sm flex items-center space-x-2 shadow-sm transition">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>Nuova Lezione / Allenamento</span>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Session List -->
+                <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <h3 class="font-bold text-slate-800 dark:text-slate-100 mb-3 text-sm uppercase tracking-wider">Sessioni Pianificate</h3>
+                    <div id="sessionList" class="space-y-2 max-h-[500px] overflow-y-auto custom-scrollbar pr-1">
+                        <!-- Dynamic Sessions -->
+                    </div>
+                </div>
+
+                <!-- Attendance & Payment Checklist -->
+                <div class="lg:col-span-2 bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col">
+                    <div id="attendanceContainer">
+                        <div class="text-center py-12 text-slate-400">
+                            <i class="fa-solid fa-clipboard-list text-4xl mb-3"></i>
+                            <p>Seleziona una sessione per gestire presenze e pagamenti</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- PAYMENTS & ACCOUNTING VIEW -->
+        <section id="view-payments" class="space-y-6 hidden">
+            <!-- Top Controls & Summary -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+                    <div class="p-3 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl text-2xl">
+                        <i class="fa-solid fa-circle-dollar-to-slot"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-semibold text-slate-500 uppercase">Totale Incassato</p>
+                        <h3 id="p-stat-paid" class="text-xl font-bold text-emerald-600 dark:text-emerald-400">€ 0.00</h3>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+                    <div class="p-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-xl text-2xl">
+                        <i class="fa-solid fa-clock-rotate-left"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-semibold text-slate-500 uppercase">Totale In Sospeso</p>
+                        <h3 id="p-stat-pending" class="text-xl font-bold text-red-500">€ 0.00</h3>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+                    <div class="p-3 bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 rounded-xl text-2xl">
+                        <i class="fa-solid fa-calculator"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-semibold text-slate-500 uppercase">Media Per Lezione</p>
+                        <h3 id="p-stat-avg" class="text-xl font-bold">€ 0.00</h3>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Payment Registration Form & Filter Bar -->
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
+                <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-3">
+                    <h3 class="font-bold text-base flex items-center space-x-2">
+                        <i class="fa-solid fa-plus-circle text-brand-600"></i>
+                        <span>Registra Pagamento Singolo o Quota</span>
+                    </h3>
+                    <button onclick="esportaReportPagamentiPDF()" class="bg-slate-700 hover:bg-slate-800 text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 transition shadow-sm">
+                        <i class="fas fa-file-pdf"></i> Esporta Report PDF
+                    </button>
+                </div>
+                <form id="quickPaymentForm" onsubmit="saveQuickPayment(event)" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Atleta</label>
+                        <select id="payAthleteId" required class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm outline-none">
+                            <option value="">Seleziona Atleta...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Causale / Oggetto</label>
+                        <input type="text" id="payReason" required placeholder="Es. Ora Lezione / Quota Mese" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Importo (€)</label>
+                        <input type="number" id="payAmount" step="0.5" required placeholder="15.00" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Metodo Pagamento</label>
+                        <select id="payMethod" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm outline-none">
+                            <option value="Contanti">Contanti</option>
+                            <option value="POS / Carta">POS / Carta</option>
+                            <option value="Bonifico">Bonifico</option>
+                            <option value="Satispay">Satispay</option>
+                        </select>
+                    </div>
+                    <div>
+                        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-4 rounded-lg text-sm transition">
+                            <i class="fa-solid fa-check mr-1"></i> Registra Incasso
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Transactions Table -->
+            <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex flex-col md:flex-row gap-3 justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
+                    <h3 class="font-bold text-base">Registro Incassi & Transazioni</h3>
+                    <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                        <select id="filterPayStatus" onchange="renderPaymentsTable()" class="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs outline-none">
+                            <option value="ALL">Tutti gli Stati</option>
+                            <option value="PAGATO">Pagati 🟢</option>
+                            <option value="SOSPESO">In Sospeso 🔴</option>
+                        </select>
+                        <select id="filterPayMethod" onchange="renderPaymentsTable()" class="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs outline-none">
+                            <option value="ALL">Tutti i Metodi</option>
+                            <option value="Contanti">Contanti</option>
+                            <option value="POS / Carta">POS / Carta</option>
+                            <option value="Bonifico">Bonifico</option>
+                            <option value="Satispay">Satispay</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-100 dark:bg-slate-700/50 text-slate-500 uppercase text-[11px] font-semibold tracking-wider">
+                            <tr>
+                                <th class="p-3 pl-4">Data</th>
+                                <th class="p-3">Atleta</th>
+                                <th class="p-3">Causale</th>
+                                <th class="p-3">Importo</th>
+                                <th class="p-3">Metodo</th>
+                                <th class="p-3">Stato</th>
+                                <th class="p-3 text-right pr-4">Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody id="paymentsTableBody" class="divide-y divide-slate-200 dark:divide-slate-700">
+                            <!-- Dynamic Content -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- MODAL: ADD / EDIT ATHLETE -->
+    <div id="athleteModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl border border-slate-200 dark:border-slate-700 m-4 max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="athleteModalTitle" class="font-bold text-lg">Aggiungi Atleta</h3>
+                <button onclick="closeAthleteModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            <form id="athleteForm" onsubmit="saveAthlete(event)" class="space-y-4">
+                <input type="hidden" id="athleteId">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Nome e Cognome</label>
+                    <input type="text" id="athleteName" required class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Categoria</label>
+                        <select id="athleteCategory" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                            <option value="Under 14">Under 14</option>
+                            <option value="Under 18">Under 18</option>
+                            <option value="Seniores">Seniores</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Ruolo / Posizione</label>
+                        <input type="text" id="athleteRole" placeholder="Es. Attaccante" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Scadenza Certificato Medico</label>
+                    <input type="date" id="athleteCertDate" required class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Note / Note Mediche</label>
+                    <textarea id="athleteNotes" rows="2" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 outline-none"></textarea>
+                </div>
+                <div class="flex justify-end space-x-3 pt-3">
+                    <button type="button" onclick="closeAthleteModal()" class="px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-700">Annulla</button>
+                    <button type="submit" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-sm font-medium">Salva</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: ADD SESSION -->
+    <div id="sessionModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl border border-slate-200 dark:border-slate-700 m-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-lg">Pianifica Lezione / Allenamento</h3>
+                <button onclick="closeSessionModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            <form id="sessionForm" onsubmit="saveSession(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Titolo / Argomento</label>
+                    <input type="text" id="sessionTitle" required placeholder="Es. Allenamento Tecnico • Campo 1" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Data</label>
+                    <input type="date" id="sessionDate" required class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Quota Standard Lezione (€)</label>
+                    <input type="number" id="sessionPrice" step="0.5" value="15" required class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm outline-none">
+                </div>
+                <div class="flex justify-end space-x-3 pt-3">
+                    <button type="button" onclick="closeSessionModal()" class="px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-sm font-medium">Annulla</button>
+                    <button type="submit" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-sm font-medium">Crea Sessione</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- DRAWER: ATHLETE PROFILE & HISTORY -->
+    <div id="athleteDrawer" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex justify-end hidden">
+        <div class="bg-white dark:bg-slate-800 w-full max-w-lg h-full shadow-2xl p-6 overflow-y-auto custom-scrollbar flex flex-col justify-between border-l border-slate-200 dark:border-slate-700">
+            <div>
+                <div class="flex justify-between items-center pb-4 border-b border-slate-200 dark:border-slate-700 mb-6">
+                    <h3 class="font-bold text-lg">Scheda Atleta & Storico</h3>
+                    <button onclick="closeAthleteDrawer()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                        <i class="fa-solid fa-xmark text-xl"></i>
+                    </button>
+                </div>
+                <div id="drawerContent"></div>
+            </div>
+            <div class="pt-4 border-t border-slate-200 dark:border-slate-700">
+                <button onclick="closeAthleteDrawer()" class="w-full py-2.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 rounded-xl text-sm font-medium transition">Chiudi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: RECEIPT PRINT/PDF -->
+    <div id="receiptModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-lg shadow-2xl border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-lg">Ricevuta Pagamento</h3>
+                <button onclick="closeReceiptModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            
+            <div id="receiptPrintArea" class="bg-slate-50 dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-700 space-y-4 my-2">
+                <div class="flex justify-between items-start border-b border-slate-200 dark:border-slate-700 pb-4">
+                    <div>
+                        <h4 class="font-bold text-brand-600 dark:text-brand-400 text-base">AthletaHub Pro</h4>
+                        <p class="text-xs text-slate-500">Gestione Sportiva Dilettantistica</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-xs font-mono text-slate-400" id="rec-id">#REC-000</p>
+                        <p class="text-xs text-slate-500" id="rec-date">Data: --</p>
+                    </div>
+                </div>
+                <div class="space-y-1 text-sm">
+                    <p class="text-xs text-slate-400 uppercase font-semibold">Atleta</p>
+                    <p class="font-bold" id="rec-athlete">-</p>
+                </div>
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <p class="text-xs text-slate-400 uppercase font-semibold">Causale</p>
+                        <p id="rec-reason" class="font-medium">-</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400 uppercase font-semibold">Metodo</p>
+                        <p id="rec-method" class="font-medium">-</p>
+                    </div>
+                </div>
+                <div class="pt-4 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                    <span class="text-xs uppercase font-semibold text-slate-500">Importo Totale</span>
+                    <span class="text-2xl font-bold text-emerald-600 dark:text-emerald-400" id="rec-amount">€ 0.00</span>
+                </div>
+            </div>
+
+            <div class="flex justify-end space-x-3 pt-3">
+                <button onclick="closeReceiptModal()" class="px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-sm font-medium">Chiudi</button>
+                <button onclick="downloadReceiptPDF()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-sm font-medium flex items-center space-x-2">
+                    <i class="fa-solid fa-file-pdf"></i>
+                    <span>Scarica PDF Ricevuta</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: TELEGRAM CONFIG & NOTIFICATIONS -->
+    <div id="telegramModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4">
+            <div class="flex justify-between items-center">
+                <h3 class="font-bold text-lg flex items-center space-x-2">
+                    <i class="fa-brands fa-telegram text-sky-500 text-xl"></i>
+                    <span>Notifiche Telegram (Scadenze 15gg)</span>
+                </h3>
+                <button onclick="closeTelegramModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            
+            <p class="text-xs text-slate-500 dark:text-slate-400">Inserisci il Bot Token e il Chat ID di Telegram per ricevere direttamente sul telefono l'elenco dei certificati in scadenza entro 15 giorni o già scaduti.</p>
+
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Telegram Bot Token</label>
+                    <input type="text" id="tgToken" placeholder="Es. 123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm outline-none font-mono text-xs">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Telegram Chat ID</label>
+                    <input type="text" id="tgChatId" placeholder="Es. 98765432" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm outline-none font-mono text-xs">
+                </div>
+            </div>
+
+            <div class="bg-sky-50 dark:bg-sky-900/20 p-3 rounded-lg border border-sky-100 dark:border-sky-800 text-xs text-sky-700 dark:text-sky-300">
+                <p class="font-semibold mb-1"><i class="fa-solid fa-circle-info mr-1"></i> Anteprima report (15 giorni):</p>
+                <div id="tgPreviewCount" class="font-bold">0 certificati richiedono attenzione immediata.</div>
+            </div>
+
+            <div class="flex justify-end space-x-2 pt-2">
+                <button onclick="saveTelegramConfig()" class="px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-sm font-medium">Salva Dati</button>
+                <button onclick="sendTelegramNotification()" class="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-sm font-medium flex items-center space-x-2">
+                    <i class="fa-brands fa-telegram"></i>
+                    <span>Invia Notifica Ora</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CONFIRMATION & RESET -->
+    <div id="confirmModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-sm shadow-2xl border border-slate-200 dark:border-slate-700 text-center space-y-4">
+            <div class="w-12 h-12 rounded-full bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400 flex items-center justify-center mx-auto text-xl">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div>
+                <h3 id="confirmTitle" class="font-bold text-lg">Sei sicuro?</h3>
+                <p id="confirmMessage" class="text-xs text-slate-500 dark:text-slate-400 mt-1">L'azione è irreversibile.</p>
+            </div>
+            <div class="flex space-x-3 pt-2">
+                <button onclick="closeConfirmModal()" class="flex-1 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-sm font-medium">Annulla</button>
+                <button id="confirmBtn" class="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium">Conferma</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- HIDDEN PDF REPORT CONTAINER -->
+    <div id="pdf-report-container" class="hidden"></div>
+
+    <!-- APP CORE LOGIC -->
+    <script>
+        // --- INITIAL DATA & LOCALSTORAGE PERSISTENCE ---
+        const initialAthletes = [
+            { id: '1', name: 'Marco Rossi', category: 'Under 18', role: 'Centrocampista', certDate: '2026-05-12', notes: 'Nessuna allergia' },
+            { id: '2', name: 'Giulia Bianchi', category: 'Under 14', role: 'Attaccante', certDate: '2026-04-20', notes: 'Asthma leggero' },
+            { id: '3', name: 'Luca Verdi', category: 'Seniores', role: 'Difensore', certDate: '2026-04-28', notes: '' }
+        ];
+
+        const initialSessions = [
+            { id: 's_1', title: 'Allenamento Tattico • Campo A', date: '2026-04-22', price: 15 },
+            { id: 's_2', title: 'Sessione Atletica • Palestra', date: '2026-04-24', price: 12 }
+        ];
+
+        const initialAttendance = {
+            's_1': { '1': true, '2': true, '3': false },
+            's_2': { '1': true, '2': false, '3': true }
+        };
+
+        const initialPayments = [
+            { id: 'p_1', athleteId: '1', sessionId: 's_1', reason: 'Allenamento Tattico • Campo A', amount: 15, date: '2026-04-22', method: 'Contanti', status: 'PAGATO' },
+            { id: 'p_2', athleteId: '2', sessionId: 's_1', reason: 'Allenamento Tattico • Campo A', amount: 15, date: '2026-04-22', method: 'Satispay', status: 'PAGATO' },
+            { id: 'p_3', athleteId: '3', sessionId: 's_2', reason: 'Sessione Atletica • Palestra', amount: 12, date: '2026-04-24', method: 'POS / Carta', status: 'SOSPESO' }
+        ];
+
+        let athletes = JSON.parse(localStorage.getItem('ath_athletes')) || initialAthletes;
+        let sessions = JSON.parse(localStorage.getItem('ath_sessions')) || initialSessions;
+        let attendance = JSON.parse(localStorage.getItem('ath_attendance')) || initialAttendance;
+        let payments = JSON.parse(localStorage.getItem('ath_payments')) || initialPayments;
+        
+        let activeSessionId = sessions.length > 0 ? sessions[0].id : null;
+        let attendanceChartInstance = null;
+        let certChartInstance = null;
+
+        function saveData() {
+            localStorage.setItem('ath_athletes', JSON.stringify(athletes));
+            localStorage.setItem('ath_sessions', JSON.stringify(sessions));
+            localStorage.setItem('ath_attendance', JSON.stringify(attendance));
+            localStorage.setItem('ath_payments', JSON.stringify(payments));
+        }
+
+        // --- APP INITIALIZATION ---
+        window.addEventListener('DOMContentLoaded', () => {
+            initTheme();
+            renderDashboard();
+            renderAthletes();
+            renderSessions();
+            renderPaymentsTable();
+            populateAthleteSelects();
+            if (activeSessionId) selectSession(activeSessionId);
+        });
+
+        // --- NAVIGATION SWITCH ---
+        function switchTab(tab) {
+            document.querySelectorAll("section[id^='view-']").forEach(s => s.classList.add('hidden'));
+            document.querySelectorAll(".tab-btn").forEach(b => {
+                b.classList.remove('border-brand-600', 'text-brand-600', 'dark:text-brand-500');
+                b.classList.add('border-transparent', 'text-slate-500');
+            });
+
+            document.getElementById(`view-${tab}`).classList.remove('hidden');
+            const activeBtn = document.getElementById(`tab-${tab}`);
+            activeBtn.classList.add('border-brand-600', 'text-brand-600', 'dark:text-brand-500');
+            activeBtn.classList.remove('border-transparent', 'text-slate-500');
+
+            if (tab === 'dashboard') renderDashboard();
+            if (tab === 'payments') renderPaymentsTable();
+            if (tab === 'attendance') { renderSessions(); if(activeSessionId) selectSession(activeSessionId); }
+        }
+
+        // --- DARK MODE TOGGLE ---
+        function initTheme() {
+            if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+            document.getElementById('themeToggle').addEventListener('click', () => {
+                document.documentElement.classList.toggle('dark');
+                localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+                renderDashboard();
+            });
+        }
+
+        // --- CONFIRMATION MODAL & RESET ---
+        function openConfirmModal(type, payload = null) {
+            const modal = document.getElementById('confirmModal');
+            const title = document.getElementById('confirmTitle');
+            const msg = document.getElementById('confirmMessage');
+            const confirmBtn = document.getElementById('confirmBtn');
+
+            modal.classList.remove('hidden');
+
+            if (type === 'deleteAthlete') {
+                const athlete = athletes.find(a => a.id === payload);
+                title.innerText = "Elimina Atleta";
+                msg.innerText = `Sei sicuro di voler eliminare ${athlete ? athlete.name : 'questo atleta'}? Tutti i dati e incassi associati verranno rimossi.`;
+                confirmBtn.onclick = () => { deleteAthlete(payload); closeConfirmModal(); };
+            } else if (type === 'deleteSession') {
+                const session = sessions.find(s => s.id === payload);
+                title.innerText = "Elimina Sessione";
+                msg.innerText = `Sei sicuro di voler eliminare la sessione "${session ? session.title : ''}"?`;
+                confirmBtn.onclick = () => { deleteSession(payload); closeConfirmModal(); };
+            } else if (type === 'deletePayment') {
+                title.innerText = "Elimina Transazione";
+                msg.innerText = "Vuoi cancellare questa registrazione di pagamento dalla cassa?";
+                confirmBtn.onclick = () => { deletePayment(payload); closeConfirmModal(); };
+            } else if (type === 'resetData') {
+                title.innerText = "Reset Generale Dati";
+                msg.innerText = "Vuoi ripristinare i dati di test predefiniti?";
+                confirmBtn.onclick = () => { resetAllData(); closeConfirmModal(); };
+            }
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirmModal').classList.add('hidden');
+        }
+
+        function resetAllData() {
+            athletes = JSON.parse(JSON.stringify(initialAthletes));
+            sessions = JSON.parse(JSON.stringify(initialSessions));
+            attendance = JSON.parse(JSON.stringify(initialAttendance));
+            payments = JSON.parse(JSON.stringify(initialPayments));
+            activeSessionId = sessions[0].id;
+            saveData();
+            renderDashboard();
+            renderAthletes();
+            renderSessions();
+            renderPaymentsTable();
+            populateAthleteSelects();
+            selectSession(activeSessionId);
+            closeAthleteDrawer();
+        }
+
+        // --- ATHLETES CRUD ---
+        function renderAthletes() {
+            const grid = document.getElementById('athletesGrid');
+            const search = document.getElementById('athleteSearch').value.toLowerCase();
+            const category = document.getElementById('categoryFilter').value;
+
+            const filtered = athletes.filter(a => {
+                const matchSearch = a.name.toLowerCase().includes(search) || a.role.toLowerCase().includes(search);
+                const matchCat = category === 'ALL' || a.category === category;
+                return matchSearch && matchCat;
+            });
+
+            grid.innerHTML = filtered.map(a => {
+                const certStatus = getCertStatus(a.certDate);
+                const totalSes = sessions.length;
+                let presentCount = 0;
+                Object.values(attendance).forEach(s => { if (s[a.id]) presentCount++; });
+                const attRate = totalSes > 0 ? Math.round((presentCount / totalSes) * 100) : 0;
+
+                return `
+                    <div class="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition flex flex-col justify-between">
+                        <div>
+                            <div class="flex justify-between items-start mb-3">
+                                <div>
+                                    <h3 class="font-bold text-lg text-slate-900 dark:text-white">${a.name}</h3>
+                                    <span class="inline-block bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs px-2 py-0.5 rounded-full font-medium mt-1">${a.category} - ${a.role}</span>
+                                </div>
+                                <div class="flex space-x-1">
+                                    <button onclick="openAthleteModal('${a.id}')" class="p-1.5 text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 rounded-lg transition">
+                                        <i class="fa-solid fa-pen text-sm"></i>
+                                    </button>
+                                    <button onclick="openConfirmModal('deleteAthlete', '${a.id}')" class="p-1.5 text-slate-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg transition">
+                                        <i class="fa-solid fa-trash text-sm"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="space-y-2 mt-4 text-xs">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-slate-500">Certificato Medico:</span>
+                                    <span class="px-2 py-0.5 rounded-full text-xs font-semibold ${certStatus.class}">${certStatus.label} (${a.certDate || 'N/A'})</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-slate-500">Tasso Presenze:</span>
+                                    <span class="font-bold text-slate-700 dark:text-slate-200">${attRate}%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-5 pt-3 border-t border-slate-100 dark:border-slate-700 flex justify-end">
+                            <button onclick="openAthleteDrawer('${a.id}')" class="text-xs font-semibold text-brand-600 dark:text-brand-400 hover:underline flex items-center space-x-1">
+                                <span>Profilo & Storico</span>
+                                <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('') || `<div class="col-span-full text-center py-8 text-slate-400">Nessun atleta trovato.</div>`;
+        }
+
+        function getCertStatus(dateStr) {
+            if (!dateStr) return { label: 'Mancante', class: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' };
+            const today = new Date();
+            const certDate = new Date(dateStr);
+            const diffDays = Math.ceil((certDate - today) / (1000 * 60 * 60 * 24));
+
+            if (diffDays < 0) return { label: 'Scaduto', class: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' };
+            if (diffDays <= 15) return { label: 'In Scadenza (≤15gg)', class: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' };
+            return { label: 'Valido', class: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' };
+        }
+
+        function openAthleteModal(id = null) {
+            const modal = document.getElementById('athleteModal');
+            const title = document.getElementById('athleteModalTitle');
+            modal.classList.remove('hidden');
+
+            if (id) {
+                const a = athletes.find(item => item.id === id);
+                title.innerText = "Modifica Atleta";
+                document.getElementById('athleteId').value = a.id;
+                document.getElementById('athleteName').value = a.name;
+                document.getElementById('athleteCategory').value = a.category;
+                document.getElementById('athleteRole').value = a.role;
+                document.getElementById('athleteCertDate').value = a.certDate;
+                document.getElementById('athleteNotes').value = a.notes;
+            } else {
+                title.innerText = "Aggiungi Atleta";
+                document.getElementById('athleteForm').reset();
+                document.getElementById('athleteId').value = '';
+            }
+        }
+
+        function closeAthleteModal() {
+            document.getElementById('athleteModal').classList.add('hidden');
+        }
+
+        function saveAthlete(e) {
+            e.preventDefault();
+            const id = document.getElementById('athleteId').value;
+            const data = {
+                id: id || Date.now().toString(),
+                name: document.getElementById('athleteName').value,
+                category: document.getElementById('athleteCategory').value,
+                role: document.getElementById('athleteRole').value,
+                certDate: document.getElementById('athleteCertDate').value,
+                notes: document.getElementById('athleteNotes').value
+            };
+
+            if (id) {
+                const index = athletes.findIndex(a => a.id === id);
+                athletes[index] = data;
+            } else {
+                athletes.push(data);
+            }
+
+            saveData();
+            renderAthletes();
+            populateAthleteSelects();
+            renderDashboard();
+            closeAthleteModal();
+        }
+
+        function deleteAthlete(id) {
+            athletes = athletes.filter(a => a.id !== id);
+            payments = payments.filter(p => p.athleteId !== id);
+            Object.keys(attendance).forEach(sId => {
+                delete attendance[sId][id];
+            });
+            saveData();
+            renderAthletes();
+            renderPaymentsTable();
+            populateAthleteSelects();
+            renderDashboard();
+            closeAthleteDrawer();
+        }
+
+        function populateAthleteSelects() {
+            const select = document.getElementById('payAthleteId');
+            if(!select) return;
+            select.innerHTML = '<option value="">Seleziona Atleta...</option>' + 
+                athletes.map(a => `<option value="${a.id}">${a.name} (${a.category})</option>`).join('');
+        }
+
+        // --- ATHLETE DRAWER ---
+        function openAthleteDrawer(id) {
+            const a = athletes.find(item => item.id === id);
+            if (!a) return;
+
+            const drawer = document.getElementById('athleteDrawer');
+            const container = document.getElementById('drawerContent');
+            const certStatus = getCertStatus(a.certDate);
+
+            const athletePayments = payments.filter(p => p.athleteId === a.id);
+            const totalPaid = athletePayments.filter(p => p.status === 'PAGATO').reduce((acc, curr) => acc + curr.amount, 0);
+
+            container.innerHTML = `
+                <div class="space-y-6">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-16 h-16 rounded-full bg-brand-100 dark:bg-brand-900/50 text-brand-600 dark:text-brand-400 flex items-center justify-center text-2xl font-bold">
+                            ${a.name.split(' ').map(n=>n[0]).join('')}
+                        </div>
+                        <div>
+                            <h4 class="text-xl font-bold">${a.name}</h4>
+                            <p class="text-sm text-slate-500">${a.category} • ${a.role}</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-200 dark:border-emerald-800 flex justify-between items-center">
+                        <div>
+                            <p class="text-xs font-semibold text-emerald-800 dark:text-emerald-300 uppercase">Totale Saldato</p>
+                            <h3 class="text-xl font-bold text-emerald-600 dark:text-emerald-400">€ ${totalPaid.toFixed(2)}</h3>
+                        </div>
+                        <i class="fa-solid fa-receipt text-2xl text-emerald-500"></i>
+                    </div>
+
+                    <div class="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3">
+                        <h5 class="font-bold text-sm uppercase tracking-wider">Certificato Medico</h5>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-slate-500">Scadenza: ${a.certDate || 'Non impostata'}</span>
+                            <span class="px-2.5 py-1 rounded-full text-xs font-semibold ${certStatus.class}">${certStatus.label}</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h5 class="font-bold text-sm uppercase tracking-wider mb-3">Storico Incassi & Lezioni</h5>
+                        <div class="space-y-2 max-h-52 overflow-y-auto custom-scrollbar pr-1">
+                            ${athletePayments.map(p => `
+                                <div class="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-900 rounded-lg text-sm">
+                                    <div>
+                                        <p class="font-semibold">${p.reason}</p>
+                                        <p class="text-xs text-slate-400">${p.date} • ${p.method}</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="font-bold">€ ${p.amount.toFixed(2)}</span>
+                                        <span class="block text-[10px] font-bold ${p.status === 'PAGATO' ? 'text-emerald-600' : 'text-red-500'}">${p.status}</span>
+                                    </div>
+                                </div>
+                            `).join('') || '<p class="text-xs text-slate-400">Nessun pagamento registrato.</p>'}
+                        </div>
+                    </div>
+
+                    <div class="pt-4 border-t border-slate-200 dark:border-slate-700 flex justify-between">
+                        <button onclick="openConfirmModal('deleteAthlete', '${a.id}')" class="px-4 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 rounded-lg text-sm font-semibold">Elimina Atleta</button>
+                        <button onclick="openAthleteModal('${a.id}')" class="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-semibold">Modifica</button>
+                    </div>
+                </div>
+            `;
+            drawer.classList.remove('hidden');
+        }
+
+        function closeAthleteDrawer() {
+            document.getElementById('athleteDrawer').classList.add('hidden');
+        }
+
+        // --- SESSIONS & ATTENDANCE ---
+        function renderSessions() {
+            const list = document.getElementById('sessionList');
+            if(!list) return;
+            list.innerHTML = sessions.map(s => {
+                const isActive = s.id === activeSessionId;
+                return `
+                    <div onclick="selectSession('${s.id}')" class="p-3 rounded-lg border transition cursor-pointer flex justify-between items-center ${isActive ? 'bg-brand-50 dark:bg-slate-700 border-brand-500' : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:border-slate-300'}">
+                        <div>
+                            <h4 class="font-semibold text-sm">${s.title}</h4>
+                            <p class="text-xs text-slate-400">${s.date} • €${s.price || 15}</p>
+                        </div>
+                        <button onclick="event.stopPropagation(); openConfirmModal('deleteSession', '${s.id}')" class="p-1.5 text-slate-400 hover:text-red-600 rounded">
+                            <i class="fa-solid fa-trash text-xs"></i>
+                        </button>
+                    </div>
+                `;
+            }).join('') || '<p class="text-xs text-slate-400 py-4 text-center">Nessuna sessione trovata.</p>';
+        }
+
+        function selectSession(sId) {
+            activeSessionId = sId;
+            renderSessions();
+            renderAttendanceGrid();
+        }
+
+        function renderAttendanceGrid() {
+            const container = document.getElementById('attendanceContainer');
+            if(!container) return;
+            const session = sessions.find(s => s.id === activeSessionId);
+            if (!session) {
+                container.innerHTML = `<div class="text-center py-12 text-slate-400"><p>Seleziona una sessione</p></div>`;
+                return;
+            }
+
+            const currentAtt = attendance[session.id] || {};
+
+            container.innerHTML = `
+                <div class="flex justify-between items-center mb-4 pb-3 border-b border-slate-200 dark:border-slate-700">
+                    <div>
+                        <h3 class="font-bold text-base">${session.title}</h3>
+                        <p class="text-xs text-slate-400">${session.date} • Quota: €${session.price || 15}</p>
+                    </div>
+                </div>
+
+                <div class="space-y-3 max-h-[420px] overflow-y-auto custom-scrollbar pr-1 flex-grow">
+                    ${athletes.map(a => {
+                        const isPresent = !!currentAtt[a.id];
+                        const payObj = payments.find(p => p.sessionId === session.id && p.athleteId === a.id);
+                        const isPaid = payObj && payObj.status === 'PAGATO';
+
+                        return `
+                            <div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                                <div>
+                                    <p class="font-semibold text-sm">${a.name}</p>
+                                    <p class="text-xs text-slate-400">${a.category}</p>
+                                </div>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <button onclick="toggleAttendance('${session.id}', '${a.id}', true)" class="px-3 py-1 rounded-lg text-xs font-semibold transition ${isPresent ? 'bg-emerald-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}">Presente</button>
+                                    <button onclick="toggleAttendance('${session.id}', '${a.id}', false)" class="px-3 py-1 rounded-lg text-xs font-semibold transition ${!isPresent && currentAtt[a.id] !== undefined ? 'bg-red-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}">Assente</button>
+
+                                    <div class="border-l border-slate-300 dark:border-slate-700 pl-2 ml-1 flex items-center">
+                                        <button onclick="toggleLessonPayment('${session.id}', '${a.id}', ${session.price || 15})" class="px-3 py-1 rounded-lg text-xs font-semibold transition flex items-center space-x-1 ${isPaid ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-300'}">
+                                            <i class="fa-solid ${isPaid ? 'fa-circle-check' : 'fa-circle-exclamation'}"></i>
+                                            <span>${isPaid ? 'Pagato €' + payObj.amount : 'Incassa Lezione'}</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('') || '<p class="text-xs text-slate-400 text-center py-6">Nessun atleta registrato.</p>'}
+                </div>
+            `;
+        }
+
+        function toggleAttendance(sId, aId, isPresent) {
+            if (!attendance[sId]) attendance[sId] = {};
+            attendance[sId][aId] = isPresent;
+            saveData();
+            renderAttendanceGrid();
+            renderDashboard();
+        }
+
+        function toggleLessonPayment(sId, aId, defaultPrice) {
+            const session = sessions.find(s => s.id === sId);
+            const index = payments.findIndex(p => p.sessionId === sId && p.athleteId === aId);
+
+            if (index >= 0) {
+                payments[index].status = payments[index].status === 'PAGATO' ? 'SOSPESO' : 'PAGATO';
+            } else {
+                payments.push({
+                    id: 'p_' + Date.now(),
+                    athleteId: aId,
+                    sessionId: sId,
+                    reason: session ? session.title : 'Ora di Lezione',
+                    amount: defaultPrice,
+                    date: session ? session.date : new Date().toISOString().split('T')[0],
+                    method: 'Contanti',
+                    status: 'PAGATO'
+                });
+            }
+            saveData();
+            renderAttendanceGrid();
+            renderPaymentsTable();
+            renderDashboard();
+        }
+
+        function openSessionModal() {
+            document.getElementById('sessionModal').classList.remove('hidden');
+            document.getElementById('sessionForm').reset();
+            document.getElementById('sessionDate').value = new Date().toISOString().split('T')[0];
+        }
+
+        function closeSessionModal() {
+            document.getElementById('sessionModal').classList.add('hidden');
+        }
+
+        function saveSession(e) {
+            e.preventDefault();
+            const newSession = {
+                id: 's_' + Date.now(),
+                title: document.getElementById('sessionTitle').value,
+                date: document.getElementById('sessionDate').value,
+                price: parseFloat(document.getElementById('sessionPrice').value) || 15
+            };
+            sessions.push(newSession);
+            saveData();
+            renderSessions();
+            closeSessionModal();
+            selectSession(newSession.id);
+        }
+
+        function deleteSession(sId) {
+            sessions = sessions.filter(s => s.id !== sId);
+            delete attendance[sId];
+            payments = payments.filter(p => p.sessionId !== sId);
+            if (activeSessionId === sId) activeSessionId = sessions.length > 0 ? sessions[0].id : null;
+            saveData();
+            renderSessions();
+            renderPaymentsTable();
+            if (activeSessionId) selectSession(activeSessionId);
+            else document.getElementById('attendanceContainer').innerHTML = `<div class="text-center py-12 text-slate-400"><p>Nessuna sessione</p></div>`;
+        }
+
+        // --- PAYMENTS & PDF ---
+        function renderPaymentsTable() {
+            const tbody = document.getElementById('paymentsTableBody');
+            if(!tbody) return;
+            const statusFilter = document.getElementById('filterPayStatus').value;
+            const methodFilter = document.getElementById('filterPayMethod').value;
+
+            let filtered = payments.filter(p => {
+                const matchStatus = statusFilter === 'ALL' || p.status === statusFilter;
+                const matchMethod = methodFilter === 'ALL' || p.method === methodFilter;
+                return matchStatus && matchMethod;
+            });
+
+            tbody.innerHTML = filtered.map(p => {
+                const athlete = athletes.find(a => a.id === p.athleteId);
+                const isPaid = p.status === 'PAGATO';
+
+                return `
+                    <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition">
+                        <td class="p-3 pl-4 font-mono text-xs">${p.date}</td>
+                        <td class="p-3 font-semibold">${athlete ? athlete.name : 'Atleta Eliminato'}</td>
+                        <td class="p-3 text-slate-500">${p.reason}</td>
+                        <td class="p-3 font-bold">€ ${p.amount.toFixed(2)}</td>
+                        <td class="p-3 text-xs"><span class="bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded">${p.method}</span></td>
+                        <td class="p-3">
+                            <span class="px-2 py-0.5 text-xs rounded-full font-bold ${isPaid ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'}">${p.status}</span>
+                        </td>
+                        <td class="p-3 text-right pr-4 space-x-2">
+                            <button onclick="togglePaymentStatus('${p.id}')" class="text-xs text-brand-600 dark:text-brand-400 font-medium hover:underline">${isPaid ? 'Segna Sospeso' : 'Segna Pagato'}</button>
+                            <button onclick="openReceiptModal('${p.id}')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-print"></i></button>
+                            <button onclick="openConfirmModal('deletePayment', '${p.id}')" class="text-slate-400 hover:text-red-600"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            }).join('') || `<tr><td colspan="7" class="text-center py-6 text-slate-400">Nessuna transazione trovata.</td></tr>`;
+
+            const totalPaid = payments.filter(p => p.status === 'PAGATO').reduce((acc, curr) => acc + curr.amount, 0);
+            const totalPending = payments.filter(p => p.status === 'SOSPESO').reduce((acc, curr) => acc + curr.amount, 0);
+            const avgPerSession = sessions.length > 0 ? (totalPaid / sessions.length) : 0;
+
+            document.getElementById('p-stat-paid').innerText = `€ ${totalPaid.toFixed(2)}`;
+            document.getElementById('p-stat-pending').innerText = `€ ${totalPending.toFixed(2)}`;
+            document.getElementById('p-stat-avg').innerText = `€ ${avgPerSession.toFixed(2)}`;
+        }
+
+        function saveQuickPayment(e) {
+            e.preventDefault();
+            const athleteId = document.getElementById('payAthleteId').value;
+            if (!athleteId) return;
+
+            payments.push({
+                id: 'p_' + Date.now(),
+                athleteId: athleteId,
+                sessionId: null,
+                reason: document.getElementById('payReason').value,
+                amount: parseFloat(document.getElementById('payAmount').value) || 0,
+                date: new Date().toISOString().split('T')[0],
+                method: document.getElementById('payMethod').value,
+                status: 'PAGATO'
+            });
+
+            saveData();
+            renderPaymentsTable();
+            renderDashboard();
+            document.getElementById('quickPaymentForm').reset();
+        }
+
+        function togglePaymentStatus(id) {
+            const p = payments.find(item => item.id === id);
+            if (p) {
+                p.status = p.status === 'PAGATO' ? 'SOSPESO' : 'PAGATO';
+                saveData();
+                renderPaymentsTable();
+                renderDashboard();
+                if (activeSessionId) renderAttendanceGrid();
+            }
+        }
+
+        function deletePayment(id) {
+            payments = payments.filter(p => p.id !== id);
+            saveData();
+            renderPaymentsTable();
+            renderDashboard();
+            if (activeSessionId) renderAttendanceGrid();
+        }
+
+        let selectedReceiptPaymentId = null;
+        function openReceiptModal(id) {
+            const p = payments.find(item => item.id === id);
+            if (!p) return;
+            selectedReceiptPaymentId = id;
+            const athlete = athletes.find(a => a.id === p.athleteId);
+
+            document.getElementById('rec-id').innerText = `#REC-${p.id}`;
+            document.getElementById('rec-date').innerText = `Data: ${p.date}`;
+            document.getElementById('rec-athlete').innerText = athlete ? athlete.name : 'Atleta Sconosciuto';
+            document.getElementById('rec-reason').innerText = p.reason;
+            document.getElementById('rec-method').innerText = p.method;
+            document.getElementById('rec-amount').innerText = `€ ${p.amount.toFixed(2)}`;
+
+            document.getElementById('receiptModal').classList.remove('hidden');
+        }
+
+        function closeReceiptModal() {
+            document.getElementById('receiptModal').classList.add('hidden');
+        }
+
+        async function downloadReceiptPDF() {
+            const { jsPDF } = window.jspdf;
+            const element = document.getElementById('receiptPrintArea');
+            try {
+                const canvas = await html2canvas(element, { scale: 2, useCORS: true });
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+                pdf.addImage(imgData, 'PNG', 0, 10, pdfWidth, pdfHeight);
+                pdf.save(`Ricevuta_${selectedReceiptPaymentId || 'pagamento'}.pdf`);
+            } catch (err) {
+                console.error(err);
+                alert('Errore generazione PDF ricevuta.');
+            }
+        }
+
+        async function esportaReportPagamentiPDF() {
+            const { jsPDF } = window.jspdf;
+            const container = document.getElementById('pdf-report-container');
+            container.classList.remove('hidden');
+
+            const totaleIncassato = payments.filter(p => p.status === 'PAGATO').reduce((sum, p) => sum + p.amount, 0);
+            const totaleInSospeso = payments.filter(p => p.status === 'SOSPESO').reduce((sum, p) => sum + p.amount, 0);
+
+            let righeHtml = payments.map(p => {
+                const atleta = athletes.find(a => a.id === p.athleteId);
+                return `
+                    <tr style="border-bottom: 1px solid #cbd5e1; font-size: 11px;">
+                        <td style="padding: 6px;">${p.date}</td>
+                        <td style="padding: 6px;">${atleta ? atleta.name : 'N/D'}</td>
+                        <td style="padding: 6px;">${p.reason}</td>
+                        <td style="padding: 6px;">${p.method}</td>
+                        <td style="padding: 6px; font-weight: bold; color: ${p.status === 'PAGATO' ? '#047857' : '#b45309'};">${p.status}</td>
+                        <td style="padding: 6px; text-align: right; font-weight: bold;">€ ${p.amount.toFixed(2)}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            container.innerHTML = `
+                <div id="pdf-content" style="padding: 30px; font-family: 'Inter', sans-serif; background: #fff; color: #1e293b; width: 800px;">
+                    <div style="border-bottom: 2px solid #0284c7; padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between;">
+                        <div>
+                            <h1 style="margin: 0; font-size: 20px; color: #0369a1;">AthletaHub Pro - Report Finanziario</h1>
+                            <p style="margin: 3px 0 0; font-size: 11px; color: #64748b;">Riepilogo incassi e transazioni</p>
+                        </div>
+                        <div style="text-align: right; font-size: 11px; color: #64748b;">
+                            <p style="margin: 0;">Data: ${new Date().toLocaleDateString('it-IT')}</p>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+                        <div style="flex: 1; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 10px; border-radius: 6px;">
+                            <span style="font-size: 10px; color: #166534; font-weight: bold;">INCASSATO</span>
+                            <div style="font-size: 16px; font-weight: bold; color: #15803d;">€ ${totaleIncassato.toFixed(2)}</div>
+                        </div>
+                        <div style="flex: 1; background: #fffbeb; border: 1px solid #fef3c7; padding: 10px; border-radius: 6px;">
+                            <span style="font-size: 10px; color: #92400e; font-weight: bold;">IN SOSPESO</span>
+                            <div style="font-size: 16px; font-weight: bold; color: #b45309;">€ ${totaleInSospeso.toFixed(2)}</div>
+                        </div>
+                    </div>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #f1f5f9; border-bottom: 2px solid #94a3b8; font-size: 11px; color: #475569;">
+                                <th style="padding: 6px; text-align: left;">Data</th>
+                                <th style="padding: 6px; text-align: left;">Atleta</th>
+                                <th style="padding: 6px; text-align: left;">Causale</th>
+                                <th style="padding: 6px; text-align: left;">Metodo</th>
+                                <th style="padding: 6px; text-align: left;">Stato</th>
+                                <th style="padding: 6px; text-align: right;">Importo</th>
+                            </tr>
+                        </thead>
+                        <tbody>${righeHtml}</tbody>
+                    </table>
+                </div>
+            `;
+
+            try {
+                const reportElem = document.getElementById('pdf-content');
+                const canvas = await html2canvas(reportElem, { scale: 2, useCORS: true });
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+                pdf.addImage(imgData, 'PNG', 0, 5, pdfWidth, pdfHeight);
+                pdf.save(`Report_Pagamenti_${new Date().toISOString().slice(0, 10)}.pdf`);
+            } catch (err) {
+                console.error(err);
+                alert('Errore generazione Report PDF.');
+            } finally {
+                container.classList.add('hidden');
+                container.innerHTML = '';
+            }
+        }
+
+        // --- TELEGRAM BOT INTEGRATION ---
+        function openTelegramModal() {
+            document.getElementById('tgToken').value = localStorage.getItem('ath_tg_token') || '';
+            document.getElementById('tgChatId').value = localStorage.getItem('ath_tg_chatid') || '';
+            
+            // Calculate expiring in 15 days
+            const expiringList = getExpiringCertificates();
+            document.getElementById('tgPreviewCount').innerText = `${expiringList.length} certificati in scadenza entro 15gg o già scaduti.`;
+            document.getElementById('telegramModal').classList.remove('hidden');
+        }
+
+        function closeTelegramModal() {
+            document.getElementById('telegramModal').classList.add('hidden');
+        }
+
+        function saveTelegramConfig() {
+            localStorage.setItem('ath_tg_token', document.getElementById('tgToken').value.trim());
+            localStorage.setItem('ath_tg_chatid', document.getElementById('tgChatId').value.trim());
+            alert('Configurazione Telegram salvata con successo!');
+        }
+
+        function getExpiringCertificates() {
+            const today = new Date();
+            return athletes.filter(a => {
+                if (!a.certDate) return true; // Missing counts as urgent
+                const certDate = new Date(a.certDate);
+                const diffDays = Math.ceil((certDate - today) / (1000 * 60 * 60 * 24));
+                return diffDays <= 15;
+            });
+        }
+
+        async function sendTelegramNotification() {
+            const token = localStorage.getItem('ath_tg_token') || document.getElementById('tgToken').value.trim();
+            const chatId = localStorage.getItem('ath_tg_chatid') || document.getElementById('tgChatId').value.trim();
+
+            if (!token || !chatId) {
+                alert('Inserisci prima il Bot Token e il Chat ID di Telegram!');
+                return;
+            }
+
+            const expiring = getExpiringCertificates();
+            if (expiring.length === 0) {
+                alert('Ottimo! Nessun certificato in scadenza nei prossimi 15 giorni.');
+                return;
+            }
+
+            let message = `🚨 *Report Scadenze Certificati Medici (≤15gg)*\n\n`;
+            expiring.forEach(a => {
+                const st = getCertStatus(a.certDate);
+                message += `• *${a.name}* (${a.category})\n  Scadenza: \`${a.certDate || 'Mancante'}\` [${st.label}]\n\n`;
+            });
+            message += `Aggiornato via AthletaHub Pro.`;
+
+            const url = `https://api.telegram.org/bot${token}/sendMessage`;
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_id: chatId,
+                        text: message,
+                        parse_mode: 'Markdown'
+                    })
+                });
+
+                const data = await response.json();
+                if (data.ok) {
+                    alert('Notifica Telegram inviata con successo!');
+                    closeTelegramModal();
+                } else {
+                    alert('Errore Telegram: ' + (data.description || 'Controlla Token e Chat ID.'));
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Errore di connessione durante l’invio del messaggio Telegram.');
+            }
+        }
+
+        // --- DASHBOARD CHARTS & STATS ---
+        function renderDashboard() {
+            document.getElementById('stat-total-athletes').innerText = athletes.length;
+
+            const totalRevenue = payments.filter(p => p.status === 'PAGATO').reduce((acc, curr) => acc + curr.amount, 0);
+            const pendingRevenue = payments.filter(p => p.status === 'SOSPESO').reduce((acc, curr) => acc + curr.amount, 0);
+            
+            document.getElementById('stat-total-revenue').innerText = `€ ${totalRevenue.toFixed(2)}`;
+            document.getElementById('stat-pending-revenue').innerText = `€ ${pendingRevenue.toFixed(2)}`;
+
+            const expiringCount = getExpiringCertificates().length;
+            document.getElementById('stat-expiring-cert').innerText = expiringCount;
+
+            renderCharts();
+        }
+
+        function renderCharts() {
+            const isDark = document.documentElement.classList.contains('dark');
+            const textColor = isDark ? '#cbd5e1' : '#475569';
+            const gridColor = isDark ? '#334155' : '#e2e8f0';
+
+            const ctx1 = document.getElementById('attendanceChart').getContext('2d');
+            if (attendanceChartInstance) attendanceChartInstance.destroy();
+
+            const sessionLabels = sessions.slice(-5).map(s => s.title);
+            const sessionData = sessions.slice(-5).map(s => {
+                const attObj = attendance[s.id] || {};
+                return Object.values(attObj).filter(Boolean).length;
+            });
+
+            attendanceChartInstance = new Chart(ctx1, {
+                type: 'bar',
+                data: {
+                    labels: sessionLabels,
+                    datasets: [{ label: 'Presenti', data: sessionData, backgroundColor: '#0284c7', borderRadius: 6 }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { color: textColor }, grid: { display: false } },
+                        y: { ticks: { color: textColor }, grid: { color: gridColor }, beginAtZero: true }
+                    }
+                }
+            });
+
+            const ctx2 = document.getElementById('certChart').getContext('2d');
+            if (certChartInstance) certChartInstance.destroy();
+
+            let valid = 0, expiring = 0, expired = 0;
+            athletes.forEach(a => {
+                const st = getCertStatus(a.certDate).label;
+                if (st === 'Valido') valid++;
+                else if (st.includes('In Scadenza')) expiring++;
+                else expired++;
+            });
+
+            certChartInstance = new Chart(ctx2, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Validi', 'In Scadenza (≤15gg)', 'Scaduti/Mancanti'],
+                    datasets: [{ data: [valid, expiring, expired], backgroundColor: ['#10b981', '#f59e0b', '#ef4444'] }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { color: textColor } } }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
