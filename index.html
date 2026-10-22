@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestione Atleti & Presenze</title>
+    <title>SportManager - Gestione Atleti & Presenze</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -145,7 +145,7 @@
                 <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
                     <div class="flex justify-between items-start">
                         <div>
-                            <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Scadenza < 15 gg</p>
+                            <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Scadenza ≤ 15 gg</p>
                             <h3 id="kpi-cert-warning" class="text-2xl font-bold mt-1 text-amber-500">0</h3>
                         </div>
                         <div class="p-2 bg-amber-50 dark:bg-amber-900/30 text-amber-500 rounded-xl">
@@ -222,7 +222,7 @@
                     <h2 class="text-xl font-bold text-slate-900 dark:text-white">Anagrafica Atleti</h2>
                     <p class="text-xs text-slate-500 dark:text-slate-400">Gestisci i dati dei tuoi tesserati</p>
                 </div>
-                <button onclick="openModal('modal-atleta')" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-all flex items-center">
+                <button onclick="openModalAtleta()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-all flex items-center">
                     <i class="fa-solid fa-plus mr-1.5"></i> Nuovo Atleta
                 </button>
             </div>
@@ -759,7 +759,6 @@
             } else {
                 listAlert.forEach(a => {
                     const days = getDaysToExpiration(a.certScadenza);
-                    const st = getCertStatus(days);
                     tbody.innerHTML += `
                         <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30">
                             <td class="px-5 py-3 font-medium text-slate-800 dark:text-white">${a.nome} ${a.cognome}</td>
@@ -902,6 +901,13 @@
         }
 
         // --- ATLETI ---
+        function openModalAtleta() {
+            document.getElementById('form-atleta').reset();
+            document.getElementById('atleta-id').value = '';
+            document.getElementById('modal-atleta-title').textContent = "Nuovo Atleta";
+            openModal('modal-atleta');
+        }
+
         function renderAtletiCard() {
             const container = document.getElementById('grid-atleti');
             const search = document.getElementById('filter-search-atleti').value.toLowerCase();
@@ -998,7 +1004,7 @@
             document.getElementById('atleta-telefono').value = a.telefono || '';
             document.getElementById('atleta-email').value = a.email || '';
             document.getElementById('atleta-cert-tipo').value = a.certTipo || 'Agonistico';
-            document.getElementById('atleta-cert-scadenza').value = a.certScadenza;
+            document.getElementById('atleta-cert-scadenza').value = a.certScadenza || '';
 
             document.getElementById('modal-atleta-title').textContent = "Modifica Atleta";
             openModal('modal-atleta');
