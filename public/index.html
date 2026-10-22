@@ -1,0 +1,1322 @@
+<!DOCTYPE html>
+<html lang="it" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SportManager - Gestione Atleti & Presenze</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: { 50: '#f0f9ff', 100: '#e0f2fe', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1' }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- jsPDF & html2canvas per esportazione PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-full flex flex-col font-sans transition-colors duration-200">
+
+    <!-- NAVIGATION BAR -->
+    <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo -->
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-600 flex items-center justify-center text-white font-bold text-xl shadow-md">
+                        <i class="fa-solid fa-running"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-lg leading-tight text-slate-900 dark:text-white">SportManager</h1>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Atleti & Presenze</p>
+                    </div>
+                </div>
+
+                <!-- Navigation Tabs -->
+                <nav class="hidden md:flex space-x-1">
+                    <button onclick="switchTab('dashboard')" id="nav-dashboard" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors text-brand-600 dark:text-brand-500 bg-brand-50 dark:bg-slate-700">
+                        <i class="fa-solid fa-chart-pie mr-1.5"></i> Dashboard
+                    </button>
+                    <button onclick="switchTab('atleti')" id="nav-atleti" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">
+                        <i class="fa-solid fa-users mr-1.5"></i> Atleti
+                    </button>
+                    <button onclick="switchTab('certificati')" id="nav-certificati" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white relative">
+                        <i class="fa-solid fa-file-medical mr-1.5"></i> Certificati
+                        <span id="badge-certificati-nav" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">0</span>
+                    </button>
+                    <button onclick="switchTab('allenamenti')" id="nav-allenamenti" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">
+                        <i class="fa-solid fa-calendar-check mr-1.5"></i> Presenze
+                    </button>
+                    <button onclick="switchTab('pagamenti')" id="nav-pagamenti" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">
+                        <i class="fa-solid fa-wallet mr-1.5"></i> Pagamenti
+                    </button>
+                </nav>
+
+                <!-- Actions Right -->
+                <div class="flex items-center space-x-2">
+                    <button onclick="openModal('modal-telegram')" title="Impostazioni Telegram" class="p-2 text-slate-500 hover:text-brand-600 dark:text-slate-400 dark:hover:text-brand-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                        <i class="fa-brands fa-telegram text-xl"></i>
+                    </button>
+                    <button onclick="toggleDarkMode()" title="Cambia Tema" class="p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                        <i id="theme-icon" class="fa-solid fa-moon"></i>
+                    </button>
+                    <button onclick="resetDataModal()" title="Reset Dati" class="p-2 text-red-500 hover:text-red-700 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                        <i class="fa-solid fa-rotate"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Navigation -->
+        <div class="md:hidden flex overflow-x-auto px-2 py-2 border-t border-slate-200 dark:border-slate-700 space-x-1 custom-scrollbar">
+            <button onclick="switchTab('dashboard')" id="nav-mobile-dashboard" class="px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap bg-brand-50 dark:bg-slate-700 text-brand-600 dark:text-brand-400">Dashboard</button>
+            <button onclick="switchTab('atleti')" id="nav-mobile-atleti" class="px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap text-slate-600 dark:text-slate-300">Atleti</button>
+            <button onclick="switchTab('certificati')" id="nav-mobile-certificati" class="px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap text-slate-600 dark:text-slate-300">Certificati</button>
+            <button onclick="switchTab('allenamenti')" id="nav-mobile-allenamenti" class="px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap text-slate-600 dark:text-slate-300">Presenze</button>
+            <button onclick="switchTab('pagamenti')" id="nav-mobile-pagamenti" class="px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap text-slate-600 dark:text-slate-300">Pagamenti</button>
+        </div>
+    </header>
+
+    <!-- MAIN CONTAINER -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- ==================== TAB DASHBOARD ==================== -->
+        <div id="tab-dashboard" class="space-y-6">
+            <!-- Alert Banner Telegram -->
+            <div class="bg-gradient-to-r from-sky-500 to-indigo-600 rounded-2xl p-4 text-white shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="flex items-center space-x-3">
+                    <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">
+                        <i class="fa-brands fa-telegram"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-lg">Notifiche Telegram Certificati</h3>
+                        <p class="text-xs text-sky-100">Ricevi la lista degli atleti con certificato in scadenza entro 15 giorni direttamente sul tuo telefono.</p>
+                    </div>
+                </div>
+                <div class="flex space-x-2 w-full sm:w-auto justify-end">
+                    <button onclick="openModal('modal-telegram')" class="px-4 py-2 bg-white text-brand-700 font-semibold text-xs rounded-xl hover:bg-slate-100 shadow transition-all">Configura Bot</button>
+                    <button onclick="inviaNotificaTelegram(true)" class="px-4 py-2 bg-sky-800/60 hover:bg-sky-800 text-white font-semibold text-xs rounded-xl border border-white/20 transition-all"><i class="fa-solid fa-paper-plane mr-1"></i> Invia Notifica Ora</button>
+                </div>
+            </div>
+
+            <!-- KPI Cards -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Atleti Totali</p>
+                            <h3 id="kpi-total-atleti" class="text-2xl font-bold mt-1 text-slate-800 dark:text-white">0</h3>
+                        </div>
+                        <div class="p-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 rounded-xl">
+                            <i class="fa-solid fa-user-group text-lg"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Certificati Scaduti</p>
+                            <h3 id="kpi-cert-scaduti" class="text-2xl font-bold mt-1 text-red-600 dark:text-red-400">0</h3>
+                        </div>
+                        <div class="p-2 bg-red-50 dark:bg-red-900/30 text-red-600 rounded-xl">
+                            <i class="fa-solid fa-file-circle-xmark text-lg"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Scadenza ≤ 15 gg</p>
+                            <h3 id="kpi-cert-warning" class="text-2xl font-bold mt-1 text-amber-500">0</h3>
+                        </div>
+                        <div class="p-2 bg-amber-50 dark:bg-amber-900/30 text-amber-500 rounded-xl">
+                            <i class="fa-solid fa-triangle-exclamation text-lg"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Presenze Medie</p>
+                            <h3 id="kpi-avg-presence" class="text-2xl font-bold mt-1 text-emerald-600 dark:text-emerald-400">0%</h3>
+                        </div>
+                        <div class="p-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 rounded-xl">
+                            <i class="fa-solid fa-chart-line text-lg"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <h3 class="font-bold text-slate-800 dark:text-white mb-4 text-sm flex items-center">
+                        <i class="fa-solid fa-pie-chart text-brand-500 mr-2"></i> Stato Certificati Medici
+                    </h3>
+                    <div class="relative h-60 flex items-center justify-center">
+                        <canvas id="chartCertificati"></canvas>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <h3 class="font-bold text-slate-800 dark:text-white mb-4 text-sm flex items-center">
+                        <i class="fa-solid fa-bar-chart text-emerald-500 mr-2"></i> Frequenza Ultimi Allenamenti
+                    </h3>
+                    <div class="relative h-60">
+                        <canvas id="chartPresenze"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Warning List Certificati -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                <div class="p-5 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                    <h3 class="font-bold text-slate-800 dark:text-white text-sm flex items-center">
+                        <i class="fa-solid fa-bell text-amber-500 mr-2"></i> Certificati Medici da Rinnovare (≤ 15 gg o Scaduti)
+                    </h3>
+                    <button onclick="switchTab('certificati')" class="text-xs text-brand-600 dark:text-brand-400 font-semibold hover:underline">Vedi Tutti &rarr;</button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 text-xs uppercase font-semibold">
+                            <tr>
+                                <th class="px-5 py-3">Atleta</th>
+                                <th class="px-5 py-3">Categoria</th>
+                                <th class="px-5 py-3">Data Scadenza</th>
+                                <th class="px-5 py-3">Giorni Rimanenti</th>
+                                <th class="px-5 py-3 text-right">Azione</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-dash-certificati" class="divide-y divide-slate-100 dark:divide-slate-700">
+                            <!-- Inserito via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== TAB ATLETI ==================== -->
+        <div id="tab-atleti" class="hidden space-y-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900 dark:text-white">Anagrafica Atleti</h2>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Gestisci i dati dei tuoi tesserati</p>
+                </div>
+                <button onclick="openModalAtleta()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-all flex items-center">
+                    <i class="fa-solid fa-plus mr-1.5"></i> Nuovo Atleta
+                </button>
+            </div>
+
+            <!-- Filtri Atleti -->
+            <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col md:flex-row gap-3">
+                <div class="relative flex-grow">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400 text-sm"></i>
+                    <input type="text" id="filter-search-atleti" oninput="renderAtletiCard()" placeholder="Cerca per nome, cognome o CF..." class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs focus:ring-2 focus:ring-brand-500 outline-none">
+                </div>
+                <select id="filter-categoria-atleti" onchange="renderAtletiCard()" class="px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs outline-none">
+                    <option value="">Tutte le Categorie</option>
+                    <option value="Pulcini">Pulcini</option>
+                    <option value="Esordienti">Esordienti</option>
+                    <option value="Giovanissimi">Giovanissimi</option>
+                    <option value="Juniores">Juniores</option>
+                    <option value="Prima Squadra">Prima Squadra</option>
+                </select>
+            </div>
+
+            <!-- Grid Atleti Cards -->
+            <div id="grid-atleti" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Inserito via JS -->
+            </div>
+        </div>
+
+        <!-- ==================== TAB CERTIFICATI ==================== -->
+        <div id="tab-certificati" class="hidden space-y-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900 dark:text-white">Monitoraggio Certificati Medici</h2>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Tracciamento delle scadenze e idoneità sportiva</p>
+                </div>
+                <div class="flex space-x-2">
+                    <button onclick="inviaNotificaTelegram(true)" class="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-all flex items-center">
+                        <i class="fa-brands fa-telegram mr-1.5"></i> Notifica Telegram (15 gg)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filtri Certificati -->
+            <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col sm:flex-row gap-3">
+                <select id="filter-stato-certificati" onchange="renderCertificatiTable()" class="px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs outline-none">
+                    <option value="">Tutti gli Stati</option>
+                    <option value="valido">Validi (🟢)</option>
+                    <option value="warning">In Scadenza ≤ 15 giorni (🟡)</option>
+                    <option value="scaduto">Scaduti (🔴)</option>
+                </select>
+            </div>
+
+            <!-- Tabella Certificati -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 text-xs uppercase font-semibold">
+                            <tr>
+                                <th class="px-5 py-3">Atleta</th>
+                                <th class="px-5 py-3">Tipo Certificato</th>
+                                <th class="px-5 py-3">Data Rilascio</th>
+                                <th class="px-5 py-3">Data Scadenza</th>
+                                <th class="px-5 py-3">Stato</th>
+                                <th class="px-5 py-3 text-right">Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-certificati" class="divide-y divide-slate-100 dark:divide-slate-700">
+                            <!-- Inserito via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== TAB ALLENAMENTI & PRESENZE ==================== -->
+        <div id="tab-allenamenti" class="hidden space-y-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900 dark:text-white">Registro Allenamenti & Presenze</h2>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Pianifica le sessioni e segna le presenze degli atleti</p>
+                </div>
+                <button onclick="openModal('modal-allenamento')" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-all flex items-center">
+                    <i class="fa-solid fa-plus mr-1.5"></i> Nuova Sessione
+                </button>
+            </div>
+
+            <!-- Lista Sessioni -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="grid-allenamenti">
+                <!-- Inserito via JS -->
+            </div>
+        </div>
+
+        <!-- ==================== TAB PAGAMENTI ==================== -->
+        <div id="tab-pagamenti" class="hidden space-y-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900 dark:text-white">Pagamenti & Cassa</h2>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Gestione quote, saldo lezioni ed esportazione ricevute PDF</p>
+                </div>
+                <div class="flex space-x-2">
+                    <button onclick="esportaReportPagamentiPDF()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-all flex items-center">
+                        <i class="fa-solid fa-file-pdf mr-1.5"></i> Report PDF Pagamenti
+                    </button>
+                    <button onclick="openModal('modal-pagamento')" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-all flex items-center">
+                        <i class="fa-solid fa-plus mr-1.5"></i> Registra Pagamento
+                    </button>
+                </div>
+            </div>
+
+            <!-- Stats Pagamenti -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Totale Incassato</p>
+                    <h3 id="stat-incassato" class="text-xl font-bold text-emerald-600 mt-1">€ 0.00</h3>
+                </div>
+                <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <p class="text-xs text-slate-500 dark:text-slate-400">In Sospeso / Da Pagare</p>
+                    <h3 id="stat-sospeso" class="text-xl font-bold text-red-500 mt-1">€ 0.00</h3>
+                </div>
+                <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Transazioni Registrate</p>
+                    <h3 id="stat-transazioni" class="text-xl font-bold text-slate-800 dark:text-white mt-1">0</h3>
+                </div>
+            </div>
+
+            <!-- Tabella Pagamenti -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 text-xs uppercase font-semibold">
+                            <tr>
+                                <th class="px-5 py-3">Data</th>
+                                <th class="px-5 py-3">Atleta</th>
+                                <th class="px-5 py-3">Causale</th>
+                                <th class="px-5 py-3">Importo</th>
+                                <th class="px-5 py-3">Stato</th>
+                                <th class="px-5 py-3 text-right">Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-pagamenti" class="divide-y divide-slate-100 dark:divide-slate-700">
+                            <!-- Inserito via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ==================== MODALI ==================== -->
+
+    <!-- MODALE TELEGRAM CONFIG -->
+    <div id="modal-telegram" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 dark:border-slate-700">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-slate-900 dark:text-white text-base flex items-center">
+                    <i class="fa-brands fa-telegram text-sky-500 mr-2"></i> Configurazione Bot Telegram
+                </h3>
+                <button onclick="closeModal('modal-telegram')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">
+                Inserisci le credenziali del tuo Bot Telegram per ricevere avvisi automatici sui certificati medici in scadenza nei prossimi 15 giorni.
+            </p>
+            <form id="form-telegram" onsubmit="saveTelegramSettings(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Bot Token API</label>
+                    <input type="text" id="tg-token" placeholder="es. 123456789:ABCdefGhIJKlm..." class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs outline-none focus:ring-2 focus:ring-sky-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Chat ID Personale</label>
+                    <input type="text" id="tg-chatid" placeholder="es. 987654321" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs outline-none focus:ring-2 focus:ring-sky-500">
+                </div>
+                <div class="flex space-x-2 pt-2">
+                    <button type="button" onclick="testTelegramBot()" class="w-1/2 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-xl hover:bg-slate-200">Test Invio</button>
+                    <button type="submit" class="w-1/2 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold rounded-xl">Salva Credenziali</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODALE ATLETA -->
+    <div id="modal-atleta" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="modal-atleta-title" class="font-bold text-slate-900 dark:text-white text-base">Nuovo Atleta</h3>
+                <button onclick="closeModal('modal-atleta')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="form-atleta" onsubmit="saveAtleta(event)" class="space-y-3">
+                <input type="hidden" id="atleta-id">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Nome *</label>
+                        <input type="text" id="atleta-nome" required class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Cognome *</label>
+                        <input type="text" id="atleta-cognome" required class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Data Nascita</label>
+                        <input type="date" id="atleta-data-nascita" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Categoria *</label>
+                        <select id="atleta-categoria" required class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs outline-none focus:ring-2 focus:ring-brand-500">
+                            <option value="Pulcini">Pulcini</option>
+                            <option value="Esordienti">Esordienti</option>
+                            <option value="Giovanissimi">Giovanissimi</option>
+                            <option value="Juniores">Juniores</option>
+                            <option value="Prima Squadra">Prima Squadra</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Telefono</label>
+                        <input type="text" id="atleta-telefono" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Email</label>
+                        <input type="email" id="atleta-email" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                </div>
+                <hr class="border-slate-200 dark:border-slate-700 my-2">
+                <p class="text-xs font-bold text-slate-800 dark:text-white">Dati Certificato Medico</p>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Tipo Certificato</label>
+                        <select id="atleta-cert-tipo" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs outline-none">
+                            <option value="Agonistico">Agonistico</option>
+                            <option value="Non Agonistico">Non Agonistico</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Data Scadenza *</label>
+                        <input type="date" id="atleta-cert-scadenza" required class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-2 pt-3">
+                    <button type="button" onclick="closeModal('modal-atleta')" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-xl">Annulla</button>
+                    <button type="submit" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold rounded-xl">Salva Atleta</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODALE SESSIONE ALLENAMENTO -->
+    <div id="modal-allenamento" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 dark:border-slate-700">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-slate-900 dark:text-white text-base">Nuova Sessione Allenamento</h3>
+                <button onclick="closeModal('modal-allenamento')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="form-allenamento" onsubmit="saveAllenamento(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Data *</label>
+                    <input type="date" id="allenamento-data" required class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs outline-none focus:ring-2 focus:ring-brand-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Categoria *</label>
+                    <select id="allenamento-categoria" required class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs outline-none">
+                        <option value="Pulcini">Pulcini</option>
+                        <option value="Esordienti">Esordienti</option>
+                        <option value="Giovanissimi">Giovanissimi</option>
+                        <option value="Juniores">Juniores</option>
+                        <option value="Prima Squadra">Prima Squadra</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Titolo / Descrizione Sessione</label>
+                    <input type="text" id="allenamento-titolo" placeholder="es. Tattica + Partitella" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs outline-none focus:ring-2 focus:ring-brand-500">
+                </div>
+                <div class="flex justify-end space-x-2 pt-3">
+                    <button type="button" onclick="closeModal('modal-allenamento')" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-xl">Annulla</button>
+                    <button type="submit" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold rounded-xl">Crea Allenamento</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODALE REGISTRO PRESENZE DELLA SESSIONE -->
+    <div id="modal-presenze" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-xl border border-slate-200 dark:border-slate-700 max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-700">
+                <div>
+                    <h3 id="modal-presenze-title" class="font-bold text-slate-900 dark:text-white text-base">Appello Presenze</h3>
+                    <p id="modal-presenze-sub" class="text-xs text-slate-500 dark:text-slate-400"></p>
+                </div>
+                <button onclick="closeModal('modal-presenze')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="py-3 flex justify-between items-center border-b border-slate-100 dark:border-slate-700">
+                <span class="text-xs text-slate-500">Azioni rapide:</span>
+                <div class="space-x-2">
+                    <button onclick="markAllPresenze(true)" class="px-2.5 py-1 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 text-xs rounded-lg font-medium">Tutti Presenti</button>
+                    <button onclick="markAllPresenze(false)" class="px-2.5 py-1 bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 text-xs rounded-lg font-medium">Tutti Assenti</button>
+                </div>
+            </div>
+
+            <div class="flex-grow overflow-y-auto py-3 space-y-2 custom-scrollbar" id="list-presenze-atleti">
+                <!-- Inserito via JS -->
+            </div>
+
+            <div class="pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-end">
+                <button onclick="closeModal('modal-presenze')" class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold rounded-xl">Chiudi & Salva</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALE REGISTRA PAGAMENTO -->
+    <div id="modal-pagamento" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 dark:border-slate-700">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-slate-900 dark:text-white text-base">Nuova Transazione</h3>
+                <button onclick="closeModal('modal-pagamento')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="form-pagamento" onsubmit="savePagamento(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Atleta *</label>
+                    <select id="pagamento-atleta" required class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs outline-none">
+                        <!-- Inserito via JS -->
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Importo (€) *</label>
+                        <input type="number" step="0.01" id="pagamento-importo" required placeholder="0.00" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Data *</label>
+                        <input type="date" id="pagamento-data" required class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs outline-none">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Causale / Oggetto *</label>
+                    <input type="text" id="pagamento-causale" required placeholder="es. Quota Mese / Lezione Singola" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs outline-none focus:ring-2 focus:ring-brand-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Stato *</label>
+                    <select id="pagamento-stato" required class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs outline-none">
+                        <option value="Pagato">Pagato 🟢</option>
+                        <option value="In Sospeso">In Sospeso / Da Pagare 🔴</option>
+                    </select>
+                </div>
+                <div class="flex justify-end space-x-2 pt-3">
+                    <button type="button" onclick="closeModal('modal-pagamento')" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-xl">Annulla</button>
+                    <button type="submit" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold rounded-xl">Salva Transazione</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODALE RICEVUTA PDF TEMPLATE -->
+    <div id="modal-ricevuta" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 dark:border-slate-700">
+            <!-- Contenuto della ricevuta che verrà convertito in PDF -->
+            <div id="receipt-pdf-content" class="p-6 bg-white text-slate-900 rounded-xl border border-slate-200">
+                <div class="flex justify-between items-center border-b border-slate-200 pb-4 mb-4">
+                    <div>
+                        <h2 class="font-bold text-lg text-brand-700">SportManager ASD</h2>
+                        <p class="text-[10px] text-slate-500">Ricevuta di Pagamento Sportivo</p>
+                    </div>
+                    <div class="text-right">
+                        <p id="rcp-num" class="text-xs font-mono font-bold text-slate-700"></p>
+                        <p id="rcp-data" class="text-[10px] text-slate-500"></p>
+                    </div>
+                </div>
+
+                <div class="space-y-3 text-xs mb-6">
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Atleta:</span>
+                        <span id="rcp-atleta" class="font-bold"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Causale:</span>
+                        <span id="rcp-causale" class="font-medium"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Stato:</span>
+                        <span id="rcp-stato" class="font-bold"></span>
+                    </div>
+                    <hr class="border-dashed border-slate-200">
+                    <div class="flex justify-between text-sm font-bold pt-1">
+                        <span>IMPORTO TOTALE:</span>
+                        <span id="rcp-importo" class="text-brand-600"></span>
+                    </div>
+                </div>
+
+                <div class="text-[9px] text-slate-400 text-center border-t border-slate-100 pt-3">
+                    Documento emesso per fini associativi e di tesseramento sportivo.
+                </div>
+            </div>
+
+            <div class="flex justify-end space-x-2 mt-4">
+                <button onclick="closeModal('modal-ricevuta')" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-xl">Chiudi</button>
+                <button onclick="downloadRicevutaPDF()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold rounded-xl flex items-center">
+                    <i class="fa-solid fa-file-pdf mr-1.5"></i> Scarica PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ==================== SCRIPT JAVASCRIPT ==================== -->
+    <script>
+        // --- DATA STORE (LOCALSTORAGE) ---
+        let atleti = JSON.parse(localStorage.getItem('sm_atleti')) || [
+            { id: '1', nome: 'Marco', cognome: 'Rossi', dataNascita: '2010-05-12', categoria: 'Esordienti', telefono: '333 1234567', email: 'marco@example.com', certTipo: 'Agonistico', certScadenza: '2026-10-28' },
+            { id: '2', nome: 'Luca', cognome: 'Verdi', dataNascita: '2012-08-20', categoria: 'Pulcini', telefono: '333 9876543', email: 'luca@example.com', certTipo: 'Non Agonistico', certScadenza: '2026-11-10' },
+            { id: '3', nome: 'Giulia', cognome: 'Bianchi', dataNascita: '2008-01-15', categoria: 'Giovanissimi', telefono: '333 5556677', email: 'giulia@example.com', certTipo: 'Agonistico', certScadenza: '2026-09-01' }
+        ];
+
+        let allenamenti = JSON.parse(localStorage.getItem('sm_allenamenti')) || [
+            { id: '101', data: '2026-10-20', categoria: 'Esordienti', titolo: 'Tecnica di base e tiro', presenze: { '1': 'presente' } },
+            { id: '102', data: '2026-10-22', categoria: 'Pulcini', titolo: 'Coordinazione e partitella', presenze: { '2': 'presente' } }
+        ];
+
+        let pagamenti = JSON.parse(localStorage.getItem('sm_pagamenti')) || [
+            { id: 'p1', atletaId: '1', data: '2026-10-01', causale: 'Quota Ottobre', importo: 50.00, stato: 'Pagato' },
+            { id: 'p2', atletaId: '2', data: '2026-10-01', causale: 'Quota Ottobre', importo: 50.00, stato: 'In Sospeso' }
+        ];
+
+        let telegramConfig = JSON.parse(localStorage.getItem('sm_telegram')) || { token: '', chatId: '' };
+
+        let chartCertInstance = null;
+        let chartPresInstance = null;
+        let currentSelectedAllenamentoId = null;
+        let currentReceiptData = null;
+
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            saveData();
+            initCharts();
+            updateUI();
+            
+            // Popola campi telegram se salvati
+            document.getElementById('tg-token').value = telegramConfig.token || '';
+            document.getElementById('tg-chatid').value = telegramConfig.chatId || '';
+        });
+
+        function saveData() {
+            localStorage.setItem('sm_atleti', JSON.stringify(atleti));
+            localStorage.setItem('sm_allenamenti', JSON.stringify(allenamenti));
+            localStorage.setItem('sm_pagamenti', JSON.stringify(pagamenti));
+            localStorage.setItem('sm_telegram', JSON.stringify(telegramConfig));
+        }
+
+        function updateUI() {
+            renderDashboard();
+            renderAtletiCard();
+            renderCertificatiTable();
+            renderAllenamentiGrid();
+            renderPagamentiTable();
+            updateCertificatiBadgeNav();
+        }
+
+        // --- NAVIGATION TABS ---
+        function switchTab(tabName) {
+            const tabs = ['dashboard', 'atleti', 'certificati', 'allenamenti', 'pagamenti'];
+            tabs.forEach(t => {
+                const el = document.getElementById(`tab-${t}`);
+                const nav = document.getElementById(`nav-${t}`);
+                const navMob = document.getElementById(`nav-mobile-${t}`);
+                
+                if (t === tabName) {
+                    el.classList.remove('hidden');
+                    if (nav) nav.className = "px-3 py-2 rounded-lg text-sm font-medium transition-colors text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-slate-700";
+                    if (navMob) navMob.className = "px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap bg-brand-50 dark:bg-slate-700 text-brand-600 dark:text-brand-400";
+                } else {
+                    el.classList.add('hidden');
+                    if (nav) nav.className = "px-3 py-2 rounded-lg text-sm font-medium transition-colors text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white";
+                    if (navMob) navMob.className = "px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap text-slate-600 dark:text-slate-300";
+                }
+            });
+            if (tabName === 'dashboard') updateCharts();
+        }
+
+        // --- HELPER DATES & STATUS ---
+        function getDaysToExpiration(dateStr) {
+            if (!dateStr) return -999;
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const exp = new Date(dateStr);
+            exp.setHours(0,0,0,0);
+            const diffTime = exp - today;
+            return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        }
+
+        function getCertStatus(days) {
+            if (days < 0) return { label: 'Scaduto', color: 'red', icon: 'fa-circle-xmark' };
+            if (days <= 15) return { label: 'In Scadenza (≤15gg)', color: 'amber', icon: 'fa-triangle-exclamation' };
+            return { label: 'Valido', color: 'emerald', icon: 'fa-circle-check' };
+        }
+
+        function updateCertificatiBadgeNav() {
+            const warningCount = atleti.filter(a => {
+                const d = getDaysToExpiration(a.certScadenza);
+                return d <= 15;
+            }).length;
+
+            const badge = document.getElementById('badge-certificati-nav');
+            if (warningCount > 0) {
+                badge.textContent = warningCount;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        // --- DASHBOARD ---
+        function renderDashboard() {
+            document.getElementById('kpi-total-atleti').textContent = atleti.length;
+            
+            let scaduti = 0;
+            let warning = 0;
+            atleti.forEach(a => {
+                const d = getDaysToExpiration(a.certScadenza);
+                if (d < 0) scaduti++;
+                else if (d <= 15) warning++;
+            });
+
+            document.getElementById('kpi-cert-scaduti').textContent = scaduti;
+            document.getElementById('kpi-cert-warning').textContent = warning;
+
+            // Table certificati warning/scaduti
+            const tbody = document.getElementById('table-dash-certificati');
+            tbody.innerHTML = '';
+
+            const listAlert = atleti.filter(a => getDaysToExpiration(a.certScadenza) <= 15)
+                                    .sort((a,b) => getDaysToExpiration(a.certScadenza) - getDaysToExpiration(b.certScadenza));
+
+            if (listAlert.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="px-5 py-4 text-center text-xs text-slate-400">Nessun certificato scaduto o in scadenza entro 15 giorni 🎉</td></tr>`;
+            } else {
+                listAlert.forEach(a => {
+                    const days = getDaysToExpiration(a.certScadenza);
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                            <td class="px-5 py-3 font-medium text-slate-800 dark:text-white">${a.nome} ${a.cognome}</td>
+                            <td class="px-5 py-3 text-slate-500">${a.categoria}</td>
+                            <td class="px-5 py-3 font-mono text-xs">${a.certScadenza}</td>
+                            <td class="px-5 py-3">
+                                <span class="px-2 py-1 rounded-md text-[10px] font-bold ${days < 0 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}">
+                                    ${days < 0 ? `Scaduto da ${Math.abs(days)} gg` : `Mancano ${days} gg`}
+                                </span>
+                            </td>
+                            <td class="px-5 py-3 text-right">
+                                <button onclick="editAtleta('${a.id}')" class="text-xs text-brand-600 hover:underline font-semibold">Aggiorna</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+        }
+
+        // --- CHARTS ---
+        function initCharts() {
+            const ctxCert = document.getElementById('chartCertificati').getContext('2d');
+            chartCertInstance = new Chart(ctxCert, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Validi', 'In Scadenza (≤15g)', 'Scaduti'],
+                    datasets: [{
+                        data: [0, 0, 0],
+                        backgroundColor: ['#10b981', '#f59e0b', '#ef4444']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            const ctxPres = document.getElementById('chartPresenze').getContext('2d');
+            chartPresInstance = new Chart(ctxPres, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Presenze Atleti',
+                        data: [],
+                        backgroundColor: '#0284c7',
+                        borderRadius: 6
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+            });
+
+            updateCharts();
+        }
+
+        function updateCharts() {
+            if (!chartCertInstance || !chartPresInstance) return;
+
+            let validi = 0, warning = 0, scaduti = 0;
+            atleti.forEach(a => {
+                const d = getDaysToExpiration(a.certScadenza);
+                if (d < 0) scaduti++;
+                else if (d <= 15) warning++;
+                else validi++;
+            });
+
+            chartCertInstance.data.datasets[0].data = [validi, warning, scaduti];
+            chartCertInstance.update();
+
+            const lastAllenamenti = [...allenamenti].reverse().slice(0, 5);
+            chartPresInstance.data.labels = lastAllenamenti.map(a => `${a.data} (${a.categoria})`);
+            chartPresInstance.data.datasets[0].data = lastAllenamenti.map(a => Object.values(a.presenze || {}).filter(v => v === 'presente').length);
+            chartPresInstance.update();
+        }
+
+        // --- TELEGRAM BOT INTEGRATION ---
+        function saveTelegramSettings(e) {
+            e.preventDefault();
+            telegramConfig.token = document.getElementById('tg-token').value.trim();
+            telegramConfig.chatId = document.getElementById('tg-chatid').value.trim();
+            saveData();
+            alert("Credenziali Telegram Salvate con successo!");
+            closeModal('modal-telegram');
+        }
+
+        async function testTelegramBot() {
+            const token = document.getElementById('tg-token').value.trim();
+            const chatId = document.getElementById('tg-chatid').value.trim();
+
+            if (!token || !chatId) {
+                alert("Inserisci sia il Token che il Chat ID per fare il test!");
+                return;
+            }
+
+            const msg = "🤖 *SportManager*: Test di connessione riuscito con successo!";
+            const success = await sendTelegramMessage(token, chatId, msg);
+            if (success) alert("Messaggio di test inviato correttamente su Telegram!");
+            else alert("Errore durante l'invio del messaggio. Verificare il Bot Token ed il Chat ID.");
+        }
+
+        async function inviaNotificaTelegram(manual = false) {
+            if (!telegramConfig.token || !telegramConfig.chatId) {
+                if (manual) alert("Configura prima il Bot Token ed il Chat ID nelle impostazioni Telegram!");
+                openModal('modal-telegram');
+                return;
+            }
+
+            const alertList = atleti.filter(a => getDaysToExpiration(a.certScadenza) <= 15);
+
+            let msg = "⚠️ *SPORTMANAGER: REPORT CERTIFICATI MEDICI (15 GG)* ⚠️\n\n";
+
+            if (alertList.length === 0) {
+                msg += "✅ *Tutto in regola!* Nessun atleta ha il certificato scaduto o in scadenza nei prossimi 15 giorni.";
+            } else {
+                msg += `Trovati *${alertList.length} atleti* da verificare:\n\n`;
+                alertList.forEach(a => {
+                    const days = getDaysToExpiration(a.certScadenza);
+                    if (days < 0) {
+                        msg += `🔴 *${a.nome} ${a.cognome}* (${a.categoria})\n └ SCADUTO il: ${a.certScadenza}\n`;
+                    } else {
+                        msg += `🟡 *${a.nome} ${a.cognome}* (${a.categoria})\n └ Scade il: ${a.certScadenza} (mancano ${days} gg)\n`;
+                    }
+                });
+            }
+
+            const ok = await sendTelegramMessage(telegramConfig.token, telegramConfig.chatId, msg);
+            if (ok && manual) alert("Report Telegram inviato con successo!");
+        }
+
+        async function sendTelegramMessage(token, chatId, text) {
+            try {
+                const url = `https://api.telegram.org/bot${token}/sendMessage`;
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chat_id: chatId, text: text, parse_mode: 'Markdown' })
+                });
+                return res.ok;
+            } catch (err) {
+                console.error(err);
+                return false;
+            }
+        }
+
+        // --- ATLETI ---
+        function openModalAtleta() {
+            document.getElementById('form-atleta').reset();
+            document.getElementById('atleta-id').value = '';
+            document.getElementById('modal-atleta-title').textContent = "Nuovo Atleta";
+            openModal('modal-atleta');
+        }
+
+        function renderAtletiCard() {
+            const container = document.getElementById('grid-atleti');
+            const search = document.getElementById('filter-search-atleti').value.toLowerCase();
+            const cat = document.getElementById('filter-categoria-atleti').value;
+
+            container.innerHTML = '';
+
+            const filtered = atleti.filter(a => {
+                const matchSearch = (a.nome + ' ' + a.cognome).toLowerCase().includes(search);
+                const matchCat = cat === '' || a.categoria === cat;
+                return matchSearch && matchCat;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400 col-span-full text-center py-8">Nessun atleta trovato.</p>`;
+                return;
+            }
+
+            filtered.forEach(a => {
+                const days = getDaysToExpiration(a.certScadenza);
+                const st = getCertStatus(days);
+
+                container.innerHTML += `
+                    <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between">
+                        <div>
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h4 class="font-bold text-slate-900 dark:text-white">${a.nome} ${a.cognome}</h4>
+                                    <span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-semibold rounded-md">${a.categoria}</span>
+                                </div>
+                                <button onclick="deleteAtleta('${a.id}')" class="text-slate-300 hover:text-red-500 text-xs p-1"><i class="fa-solid fa-trash"></i></button>
+                            </div>
+
+                            <div class="mt-4 space-y-1 text-xs text-slate-500 dark:text-slate-400">
+                                <p><i class="fa-solid fa-phone w-4 text-slate-400"></i> ${a.telefono || 'N/D'}</p>
+                                <p><i class="fa-solid fa-envelope w-4 text-slate-400"></i> ${a.email || 'N/D'}</p>
+                            </div>
+
+                            <div class="mt-4 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-700/50 flex items-center justify-between">
+                                <div class="text-[11px]">
+                                    <p class="text-slate-400 font-medium">Certificato (${a.certTipo})</p>
+                                    <p class="font-mono font-bold text-slate-700 dark:text-slate-200">${a.certScadenza}</p>
+                                </div>
+                                <span class="px-2 py-1 rounded-md text-[10px] font-bold bg-${st.color}-100 text-${st.color}-700">
+                                    ${st.label}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700 flex justify-end space-x-2">
+                            <button onclick="editAtleta('${a.id}')" class="px-3 py-1.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-lg hover:bg-slate-200">Modifica</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function saveAtleta(e) {
+            e.preventDefault();
+            const id = document.getElementById('atleta-id').value;
+            const obj = {
+                id: id || Date.now().toString(),
+                nome: document.getElementById('atleta-nome').value.trim(),
+                cognome: document.getElementById('atleta-cognome').value.trim(),
+                dataNascita: document.getElementById('atleta-data-nascita').value,
+                categoria: document.getElementById('atleta-categoria').value,
+                telefono: document.getElementById('atleta-telefono').value.trim(),
+                email: document.getElementById('atleta-email').value.trim(),
+                certTipo: document.getElementById('atleta-cert-tipo').value,
+                certScadenza: document.getElementById('atleta-cert-scadenza').value
+            };
+
+            if (id) {
+                const idx = atleti.findIndex(a => a.id === id);
+                if (idx !== -1) atleti[idx] = obj;
+            } else {
+                atleti.push(obj);
+            }
+
+            saveData();
+            updateUI();
+            closeModal('modal-atleta');
+        }
+
+        function editAtleta(id) {
+            const a = atleti.find(x => x.id === id);
+            if (!a) return;
+
+            document.getElementById('atleta-id').value = a.id;
+            document.getElementById('atleta-nome').value = a.nome;
+            document.getElementById('atleta-cognome').value = a.cognome;
+            document.getElementById('atleta-data-nascita').value = a.dataNascita || '';
+            document.getElementById('atleta-categoria').value = a.categoria;
+            document.getElementById('atleta-telefono').value = a.telefono || '';
+            document.getElementById('atleta-email').value = a.email || '';
+            document.getElementById('atleta-cert-tipo').value = a.certTipo || 'Agonistico';
+            document.getElementById('atleta-cert-scadenza').value = a.certScadenza || '';
+
+            document.getElementById('modal-atleta-title').textContent = "Modifica Atleta";
+            openModal('modal-atleta');
+        }
+
+        function deleteAtleta(id) {
+            if (confirm("Sei sicuro di voler eliminare questo atleta?")) {
+                atleti = atleti.filter(a => a.id !== id);
+                saveData();
+                updateUI();
+            }
+        }
+
+        // --- CERTIFICATI ---
+        function renderCertificatiTable() {
+            const tbody = document.getElementById('table-certificati');
+            const stFilter = document.getElementById('filter-stato-certificati').value;
+
+            tbody.innerHTML = '';
+
+            const filtered = atleti.filter(a => {
+                const d = getDaysToExpiration(a.certScadenza);
+                if (stFilter === 'valido') return d > 15;
+                if (stFilter === 'warning') return d >= 0 && d <= 15;
+                if (stFilter === 'scaduto') return d < 0;
+                return true;
+            });
+
+            filtered.forEach(a => {
+                const days = getDaysToExpiration(a.certScadenza);
+                const st = getCertStatus(days);
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                        <td class="px-5 py-3 font-medium text-slate-800 dark:text-white">${a.nome} ${a.cognome}</td>
+                        <td class="px-5 py-3 text-slate-500">${a.certTipo || 'Agonistico'}</td>
+                        <td class="px-5 py-3 text-slate-400 font-mono text-xs">-</td>
+                        <td class="px-5 py-3 font-mono font-bold text-slate-700 dark:text-slate-200 text-xs">${a.certScadenza}</td>
+                        <td class="px-5 py-3">
+                            <span class="px-2 py-1 rounded-md text-[10px] font-bold bg-${st.color}-100 text-${st.color}-700">
+                                ${st.label}
+                            </span>
+                        </td>
+                        <td class="px-5 py-3 text-right">
+                            <button onclick="editAtleta('${a.id}')" class="text-xs text-brand-600 hover:underline font-semibold">Rinnova / Modifica</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        // --- ALLENAMENTI & PRESENZE ---
+        function renderAllenamentiGrid() {
+            const container = document.getElementById('grid-allenamenti');
+            container.innerHTML = '';
+
+            if (allenamenti.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400 col-span-full text-center py-8">Nessun allenamento programmato.</p>`;
+                return;
+            }
+
+            allenamenti.forEach(a => {
+                const totalPresenze = Object.values(a.presenze || {}).filter(v => v === 'presente').length;
+
+                container.innerHTML += `
+                    <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between">
+                        <div>
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <span class="px-2 py-0.5 bg-brand-50 text-brand-700 dark:bg-slate-700 dark:text-brand-400 text-[10px] font-bold rounded-md">${a.categoria}</span>
+                                    <h4 class="font-bold text-slate-900 dark:text-white mt-1">${a.titolo || 'Allenamento Standard'}</h4>
+                                </div>
+                                <button onclick="deleteAllenamento('${a.id}')" class="text-slate-300 hover:text-red-500 text-xs p-1"><i class="fa-solid fa-trash"></i></button>
+                            </div>
+                            <p class="text-xs text-slate-400 mt-2 font-mono"><i class="fa-regular fa-calendar mr-1"></i> ${a.data}</p>
+                        </div>
+
+                        <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                            <span class="text-xs text-slate-500"><strong class="text-emerald-600">${totalPresenze}</strong> presenti</span>
+                            <button onclick="openPresenzeModal('${a.id}')" class="px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold rounded-lg">Fai Appello</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function saveAllenamento(e) {
+            e.preventDefault();
+            const obj = {
+                id: Date.now().toString(),
+                data: document.getElementById('allenamento-data').value,
+                categoria: document.getElementById('allenamento-categoria').value,
+                titolo: document.getElementById('allenamento-titolo').value.trim(),
+                presenze: {}
+            };
+
+            allenamenti.unshift(obj);
+            saveData();
+            updateUI();
+            closeModal('modal-allenamento');
+        }
+
+        function deleteAllenamento(id) {
+            if (confirm("Eliminare questa sessione di allenamento?")) {
+                allenamenti = allenamenti.filter(a => a.id !== id);
+                saveData();
+                updateUI();
+            }
+        }
+
+        function openPresenzeModal(allenamentoId) {
+            currentSelectedAllenamentoId = allenamentoId;
+            const all = allenamenti.find(a => a.id === allenamentoId);
+            if (!all) return;
+
+            document.getElementById('modal-presenze-title').textContent = `Appello: ${all.categoria}`;
+            document.getElementById('modal-presenze-sub').textContent = `Data: ${all.data} - ${all.titolo || ''}`;
+
+            const atletiCat = atleti.filter(a => a.categoria === all.categoria);
+            const listContainer = document.getElementById('list-presenze-atleti');
+            listContainer.innerHTML = '';
+
+            if (atletiCat.length === 0) {
+                listContainer.innerHTML = `<p class="text-xs text-slate-400 py-4 text-center">Nessun atleta registrato in questa categoria.</p>`;
+            } else {
+                atletiCat.forEach(a => {
+                    const status = (all.presenze && all.presenze[a.id]) || 'assente';
+                    listContainer.innerHTML += `
+                        <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-700/40 border border-slate-100 dark:border-slate-700">
+                            <span class="font-medium text-xs text-slate-800 dark:text-white">${a.nome} ${a.cognome}</span>
+                            <div class="space-x-1">
+                                <button onclick="setPresenza('${a.id}', 'presente')" class="px-2.5 py-1 text-xs font-bold rounded-lg ${status === 'presente' ? 'bg-emerald-500 text-white' : 'bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300'}">Presente ✅</button>
+                                <button onclick="setPresenza('${a.id}', 'assente')" class="px-2.5 py-1 text-xs font-bold rounded-lg ${status === 'assente' ? 'bg-red-500 text-white' : 'bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300'}">Assente ❌</button>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            openModal('modal-presenze');
+        }
+
+        function setPresenza(atletaId, status) {
+            const all = allenamenti.find(a => a.id === currentSelectedAllenamentoId);
+            if (!all) return;
+            if (!all.presenze) all.presenze = {};
+            all.presenze[atletaId] = status;
+            saveData();
+            openPresenzeModal(currentSelectedAllenamentoId);
+            updateUI();
+        }
+
+        function markAllPresenze(isPresent) {
+            const all = allenamenti.find(a => a.id === currentSelectedAllenamentoId);
+            if (!all) return;
+            const atletiCat = atleti.filter(a => a.categoria === all.categoria);
+            if (!all.presenze) all.presenze = {};
+            atletiCat.forEach(a => {
+                all.presenze[a.id] = isPresent ? 'presente' : 'assente';
+            });
+            saveData();
+            openPresenzeModal(currentSelectedAllenamentoId);
+            updateUI();
+        }
+
+        // --- PAGAMENTI & CASSA ---
+        function renderPagamentiTable() {
+            const tbody = document.getElementById('table-pagamenti');
+            tbody.innerHTML = '';
+
+            let totalIncassato = 0;
+            let totalSospeso = 0;
+
+            pagamenti.forEach(p => {
+                const atl = atleti.find(a => a.id === p.atletaId) || { nome: 'Atleta', cognome: 'Eliminato' };
+                if (p.stato === 'Pagato') totalIncassato += Number(p.importo);
+                else totalSospeso += Number(p.importo);
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                        <td class="px-5 py-3 font-mono text-xs text-slate-500">${p.data}</td>
+                        <td class="px-5 py-3 font-medium text-slate-800 dark:text-white">${atl.nome} ${atl.cognome}</td>
+                        <td class="px-5 py-3 text-slate-500">${p.causale}</td>
+                        <td class="px-5 py-3 font-bold text-slate-800 dark:text-white">€ ${Number(p.importo).toFixed(2)}</td>
+                        <td class="px-5 py-3">
+                            <span class="px-2 py-1 rounded-md text-[10px] font-bold ${p.stato === 'Pagato' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}">
+                                ${p.stato}
+                            </span>
+                        </td>
+                        <td class="px-5 py-3 text-right space-x-2">
+                            <button onclick="stampaRicevuta('${p.id}')" class="text-xs text-brand-600 hover:underline font-semibold"><i class="fa-solid fa-receipt"></i> PDF</button>
+                            <button onclick="deletePagamento('${p.id}')" class="text-xs text-red-500 hover:underline"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            document.getElementById('stat-incassato').textContent = `€ ${totalIncassato.toFixed(2)}`;
+            document.getElementById('stat-sospeso').textContent = `€ ${totalSospeso.toFixed(2)}`;
+            document.getElementById('stat-transazioni').textContent = pagamenti.length;
+
+            // Aggiorna tendina pagamenti
+            const select = document.getElementById('pagamento-atleta');
+            select.innerHTML = '';
+            atleti.forEach(a => {
+                select.innerHTML += `<option value="${a.id}">${a.nome} ${a.cognome} (${a.categoria})</option>`;
+            });
+        }
+
+        function savePagamento(e) {
+            e.preventDefault();
+            const obj = {
+                id: 'p_' + Date.now(),
+                atletaId: document.getElementById('pagamento-atleta').value,
+                importo: parseFloat(document.getElementById('pagamento-importo').value),
+                data: document.getElementById('pagamento-data').value,
+                causale: document.getElementById('pagamento-causale').value.trim(),
+                stato: document.getElementById('pagamento-stato').value
+            };
+
+            pagamenti.unshift(obj);
+            saveData();
+            updateUI();
+            closeModal('modal-pagamento');
+        }
+
+        function deletePagamento(id) {
+            if (confirm("Eliminare questo pagamento?")) {
+                pagamenti = pagamenti.filter(p => p.id !== id);
+                saveData();
+                updateUI();
+            }
+        }
+
+        function stampaRicevuta(id) {
+            const p = pagamenti.find(x => x.id === id);
+            if (!p) return;
+            const atl = atleti.find(a => a.id === p.atletaId) || { nome: 'Atleta', cognome: 'N/D' };
+
+            currentReceiptData = { p, atl };
+
+            document.getElementById('rcp-num').textContent = `RICEVUTA #${p.id.slice(-6)}`;
+            document.getElementById('rcp-data').textContent = `Data: ${p.data}`;
+            document.getElementById('rcp-atleta').textContent = `${atl.nome} ${atl.cognome}`;
+            document.getElementById('rcp-causale').textContent = p.causale;
+            document.getElementById('rcp-stato').textContent = p.stato;
+            document.getElementById('rcp-importo').textContent = `€ ${Number(p.importo).toFixed(2)}`;
+
+            openModal('modal-ricevuta');
+        }
+
+        function downloadRicevutaPDF() {
+            const { window } = globalThis;
+            const element = document.getElementById('receipt-pdf-content');
+            
+            html2canvas(element).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a5');
+                const imgWidth = 148;
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                
+                pdf.addImage(imgData, 'PNG', 0, 10, imgWidth, imgHeight);
+                pdf.save(`Ricevuta_${currentReceiptData.atl.cognome}_${currentReceiptData.p.data}.pdf`);
+            });
+        }
+
+        function esportaReportPagamentiPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            doc.setFontSize(16);
+            doc.text("Report Finanziario Pagamenti", 14, 20);
+            doc.setFontSize(10);
+            doc.text(`Data Generazione: ${new Date().toLocaleDateString()}`, 14, 28);
+
+            let y = 40;
+            doc.setFontSize(11);
+            doc.text("Dettaglio Transazioni:", 14, y);
+            y += 8;
+
+            pagamenti.forEach((p, idx) => {
+                const atl = atleti.find(a => a.id === p.atletaId) || { nome: 'Atleta', cognome: 'N/D' };
+                doc.setFontSize(9);
+                doc.text(`${p.data} - ${atl.nome} ${atl.cognome} | ${p.causale} | €${Number(p.importo).toFixed(2)} [${p.stato}]`, 14, y);
+                y += 6;
+                if (y > 270) { doc.addPage(); y = 20; }
+            });
+
+            doc.save("Report_Pagamenti.pdf");
+        }
+
+        // --- UTILS & MODALS ---
+        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+        function toggleDarkMode() {
+            document.documentElement.classList.toggle('dark');
+            const icon = document.getElementById('theme-icon');
+            if (document.documentElement.classList.contains('dark')) {
+                icon.className = 'fa-solid fa-sun';
+            } else {
+                icon.className = 'fa-solid fa-moon';
+            }
+        }
+
+        function resetDataModal() {
+            if (confirm("Ripristinare i dati di esempio iniziali? Tutti i dati correnti verranno sovrascritti.")) {
+                localStorage.clear();
+                location.reload();
+            }
+        }
+    </script>
+</body>
+</html>
